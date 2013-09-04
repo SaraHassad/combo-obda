@@ -11,6 +11,10 @@ profile.txt: The data generator profile.
 README.txt: This README file.
 COPYING.txt: The license.
 EUGen.jar: The data generator. 
+ontologies/: Provides ontologies for benchmarking. The number in the name of the 
+    file indicates the number of subject subclasses, which is related to the 
+    -subclass parameter of the data generator.
+queries/: Provides queries for benchmarking.
 
 ==================
 USAGE
