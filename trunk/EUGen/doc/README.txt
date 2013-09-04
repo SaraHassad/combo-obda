@@ -1,5 +1,5 @@
 ####################################################
-Extended University Data Generator v0.1c
+Extended University Data Generator v0.1
 based on Univ-Bench Artificial Data Generator (UBA) V1.7 at http://swat.cse.lehigh.edu/projects/lubm/
 Theory of Artificial Intelligence Group, University of Bremen, Germany
 ####################################################
@@ -8,8 +8,9 @@ Theory of Artificial Intelligence Group, University of Bremen, Germany
 DIRECTORY STRUCTURE
 ==================
 profile.txt: The data generator profile.
-src/: This directory contains the source files.
-dist/: This directory contains EUGen.jar, which provides the main interface to the generator. 
+README.txt: This README file.
+COPYING.txt: The license.
+EUGen.jar: The data generator. 
 
 ==================
 USAGE
@@ -36,7 +37,8 @@ options:
    -dir the output directory to place the generated files
    -onto url of the univ-bench ontology
 
-- EUGen.jar should be on $CLASSPATH.
+note:
+    EUGen.jar should be on $CLASSPATH.
 
 ==================
 CONTACT
