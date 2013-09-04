@@ -1,23 +1,25 @@
 /**
  * MODIFIED BY: Inanc Seylan Theory of Artificial Intelligence Group, University
- * of Bremen, Germany 2012
+ * of Bremen, Germany, Copyright (C) 2012
  *
  * ORIGINAL CODE BY: Yuanbo Guo Semantic Web and Agent Technology Lab, CSE
  * Department, Lehigh University, USA Copyright (C) 2004
  *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free Software
- * Foundation; either version 2 of the License, or (at your option) any later
- * version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place, Suite 330, Boston, MA 02111-1307 USA
+ * This file is part of combo-obda.
+ * combo-obda is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * combo-obda is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with combo-obda. If not, see <http://www.gnu.org/licenses/>.
  */
+
 package de.unibremen.informatik.tdki;
 
 import java.util.*;
