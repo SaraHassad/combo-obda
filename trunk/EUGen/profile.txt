@@ -1,0 +1,45 @@
+DATA PROFILE
+
+In each University
+
+    15~25 Departments are subOrganization of the University
+
+INPUT
+n: a number between 1...100 for the degree of incompleteness.
+m: an integer for the number of subclasses.
+
+In each Department:
+
+* Randomly pick a value 1 <= i <= m. The current Department is an instance of SubjiDepartment.
+* 7~10 FullProfessors are generated. (100-n)% are asserted to worksFor the Department. 
+* 10~14 AssociateProfessors are generated. (100-n)% are asserted to worksFor the Department. 
+* 8~11 AssistantProfessors are generated. (100-n)% are asserted to worksFor the Department. 
+* Each Full-, Associate-, AssistantProfessor is an instance of SubjiProfessor.
+* 5~7 Lecturers are generated. (100-n)% are asserted to worksFor the Department. 
+* one of the FullProfessors is headOf the Department
+* n% of Faculty are teacherOf of no Course, the remaining are teacherOf 1~2 Courses.
+* n% of Faculty are teacherOf of no GraduateCourse, the remaining are teacherOf 1~2 GraduateCourses.
+* Courses taught by faculties are pairwise disjoint
+* Each Course and GraduateCourse is an instance of SubjiCourse.
+* 10~20 ResearchGroups are subOrganization of the Department
+* UndergraduateStudent : Faculty = 8~14 : 1
+* GraduateStudent : Faculty = 3~4 : 1
+* Each UndergraduateStudent and GraduateStudent is an instance of SubjiStudent.
+* (100-n)% of Students are asserted to be memberOf the Department.
+* 1/5~1/4 of the GraduateStudents are chosen as TeachingAssistant for one Course.
+* The Courses the GraduateStudents are TeachingAssistant of are pairwise different.
+* 1/4~1/3 of the GraduateStudents are chosen as ResearchAssistant.
+* 1/5 of the UndergraduateStudents have a Professor as their advisor.
+* (100-n)% of GraduateStudents have a Professor as their advisors.
+* n% of UndergraduateStudents takesCourse nothing, the remaining takesCourse 2~4 Courses.
+* n% of GraduateStudents takesCourse nothing, the remaining takesCourse 1~3 GraduateCourses.
+* n% of FullProfessors are publicationAuthor of nothing, the remaining are publicationAuthor of 15~20 Publications.
+* n% of AssociateProfessors are publicationAuthor of nothing, the remaining are publicationAuthor of 10~18 Publications.
+* n% of AssistantProfessors are publicationAuthor of nothing, the remaining are publicationAuthor of 5~10 Publications.
+* every Lecturer has 0~5 Publications
+* every GraduateStudent co-authors 0~5 Publications with some Professors
+* for every Faculty, 
+    - there is n% chance that the University that this Faculty obtained his undergraduateDegreeFrom is missing; 
+    - there is n% chance that the University that this Faculty obtained his mastersDegreeFrom is missing; 
+    - there is n% chance that the University that this Faculty obtained his doctoralDegreeFrom is missing.
+* for every GraudateStudent, there is n% chance that the University that this GraduateStudent obtained his undergraduateDegreeFrom is missing.
