@@ -71,4 +71,16 @@
     nbproject/build-impl.xml file. 
 
     -->
+    <target name="-post-jar">
+        <delete file="${dist.dir}/README.TXT"/>
+        <copy todir="${dist.dir}">
+            <fileset dir="doc"/>
+        </copy>
+        <copy todir="${dist.dir}/ontologies">
+            <fileset dir="ontologies"/>
+        </copy>
+        <copy todir="${dist.dir}/queries">
+            <fileset dir="queries"/>
+        </copy>
+    </target> 
 </project>
