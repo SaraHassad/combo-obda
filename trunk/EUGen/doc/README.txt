@@ -48,4 +48,4 @@ example:
 CONTACT
 ==================
 
-Inanc Seylan	seylan@informatik.uni-bremen.de
+combo-obda-users@googlegroups.com
