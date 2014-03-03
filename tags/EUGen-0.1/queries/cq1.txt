@@ -1,0 +1,1 @@
+Q(?0,?2) <- Student(?0), takesCourse(?0,?1), Subj1Course(?1), teacherOf(?2,?1), Professor(?2), headOf(?2,?3), Department(?3), memberOf(?0,?3)
