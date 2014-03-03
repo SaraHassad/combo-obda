@@ -1,0 +1,4 @@
+Q(?0) <- worksFor_..(?0, ?1), affiliatedOrganizationOf_.u(?1)
+worksFor_..(?x, ?y) <- worksFor(?x, ?y)
+worksFor_..(?x, ?y) <- headOf(?x, ?y)
+affiliatedOrganizationOf_.u(?x) <- affiliatedOrganizationOf(?x, ?_)
