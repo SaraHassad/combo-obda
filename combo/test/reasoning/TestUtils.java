@@ -19,7 +19,9 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import de.unibremen.informatik.tdki.combo.common.Tuple;
 import de.unibremen.informatik.tdki.combo.data.DB2Interface;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import org.apache.commons.dbutils.ResultSetHandler;
 
 /**
  *
@@ -27,17 +29,23 @@ import org.springframework.jdbc.support.rowset.SqlRowSet;
  */
 public class TestUtils {
 
-    public static Multiset<Tuple<String>> getTuples(String query) {
-        Multiset<Tuple<String>> result = HashMultiset.create();
-        SqlRowSet rs = DB2Interface.getJDBCTemplate().queryForRowSet(query);
-        int columns = rs.getMetaData().getColumnCount();
-        while (rs.next()) {
-            Tuple<String> t = new Tuple<String>();
-            for (int i = 1; i <= columns; i++) {
-                t.add(rs.getString(i));
+    public static <E> Multiset<Tuple<E>> getTuples(String query) {
+        final Multiset<Tuple<E>> result = HashMultiset.create();
+        DB2Interface.getJDBCTemplate().query(query, new ResultSetHandler() {
+
+            @Override
+            public Object handle(ResultSet rs) throws SQLException {
+                int columns = rs.getMetaData().getColumnCount();
+                while (rs.next()) {
+                    Tuple<E> t = new Tuple<E>();
+                    for (int i = 1; i <= columns; i++) {
+                        t.add((E) rs.getObject(i));
+                    }
+                    result.add(t);
+                }
+                return null;
             }
-            result.add(t);
-        }
+        });
         return result;
     }
 }

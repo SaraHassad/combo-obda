@@ -17,6 +17,8 @@ package de.unibremen.informatik.tdki.combo.rewriting;
 
 import de.unibremen.informatik.tdki.combo.data.DB2Interface;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
+import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
+import de.unibremen.informatik.tdki.combo.data.RowCallbackHandler;
 import de.unibremen.informatik.tdki.combo.syntax.query.*;
 import de.unibremen.informatik.tdki.combo.syntax.sql.*;
 import java.io.*;
@@ -25,8 +27,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowCallbackHandler;
 
 /**
  *

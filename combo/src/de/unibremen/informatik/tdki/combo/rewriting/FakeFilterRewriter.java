@@ -17,11 +17,11 @@ package de.unibremen.informatik.tdki.combo.rewriting;
 
 import de.unibremen.informatik.tdki.combo.syntax.sql.SFWQuery;
 import de.unibremen.informatik.tdki.combo.data.DB2Interface;
+import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
 import java.io.*;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.springframework.jdbc.core.JdbcTemplate;
 import de.unibremen.informatik.tdki.combo.syntax.query.ConjunctiveQuery;
 import de.unibremen.informatik.tdki.combo.syntax.sql.WhereComposite;
 
