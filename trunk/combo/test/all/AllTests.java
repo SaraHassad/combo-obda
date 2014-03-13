@@ -24,7 +24,6 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-    interval.IntervalTest.class,
     reasoning.ReasoningTestSuite.class,
     syntax.SyntaxTestSuit.class,
 })
