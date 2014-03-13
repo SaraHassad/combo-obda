@@ -24,11 +24,6 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.log4j.PropertyConfigurator;
-import org.springframework.jdbc.BadSqlGrammarException;
-import org.springframework.jdbc.CannotGetJdbcConnectionException;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 /**
  *
@@ -55,8 +50,7 @@ public class DB2Interface {
                 String dbUrl = appProps.getProperty("dburl");
                 String username = appProps.getProperty("user");
                 String password = appProps.getProperty("password");
-                SingleConnectionDataSource dataSource = new SingleConnectionDataSource(dbUrl, username, password, true);
-                instance = new JdbcTemplate(dataSource);
+                instance = new JdbcTemplate(dbUrl, username, password);
                 DB2Interface.username = username;
             } catch (FileNotFoundException ex) {
                 Logger.getLogger(DB2Interface.class.getName()).log(Level.SEVERE, null, ex);
@@ -67,10 +61,12 @@ public class DB2Interface {
         return instance;
     }
 
-    public static void bulkLoad(String filename, String tablename, String exceptionTable) {
+    private static void bulkLoad(String command, String filename, String tablename, String exceptionTable) {
         boolean useExceptionTable = (!exceptionTable.equals(""));
         StringBuilder buffer = new StringBuilder();
-        buffer.append("CALL sysproc.admin_cmd('LOAD FROM ");
+        buffer.append("CALL sysproc.admin_cmd('");
+        buffer.append(command);
+        buffer.append(" FROM ");
         buffer.append(filename);
         buffer.append(" OF DEL MODIFIED BY NOCHARDEL COLDELx09 REPLACE INTO ");
         buffer.append(tablename);
@@ -93,6 +89,14 @@ public class DB2Interface {
     public static void bulkLoad(String filename, String tablename) {
         bulkLoad(filename, tablename, "");
     }
+    
+    public static void bulkLoad(String filename, String tablename, String exceptionTable) {
+        bulkLoad("LOAD", filename, tablename, exceptionTable);
+    }
+    
+    public static void bulkImport(String filename, String tablename) {
+        bulkLoad("IMPORT", filename, tablename, "");
+    }
 
     public static void bulkExport(String filename, String tablename) {
         getJDBCTemplate().execute("CALL sysproc.admin_cmd('EXPORT TO " + filename + " OF DEL MODIFIED BY NOCHARDEL COLDELx09 SELECT * FROM " + tablename + "')");
@@ -106,25 +110,25 @@ public class DB2Interface {
         // remember that when a table is dropped also its indices are dropped
         try {
             getJDBCTemplate().execute("DROP TABLE " + tablename);
-        } catch (BadSqlGrammarException e) {
+        } catch (DBObjectDoesNotExistException e) {
             // table does not exist
         }
     }
 
     public static void safeDropView(String viewname) {
-        try {
+//        try {
             getJDBCTemplate().execute("DROP VIEW " + viewname);
-        } catch (BadSqlGrammarException e) {
-            // object does not exist
-        }
+//        } catch (BadSqlGrammarException e) {
+//            // object does not exist
+//        }
     }
     
     public static void safeDropProcedure(String name) {
-        try {
+//        try {
             getJDBCTemplate().execute("DROP PROCEDURE " + name);
-        } catch (BadSqlGrammarException e) {
-            // object does not exist
-        }
+//        } catch (BadSqlGrammarException e) {
+//            // object does not exist
+//        }
     }
 
     public static void loadReplaceIntoTable(String cursor, String table) {
@@ -133,20 +137,5 @@ public class DB2Interface {
 
     public static void loadInsertIntoTable(String cursor, String table) {
         getJDBCTemplate().execute("CALL sysproc.admin_cmd('LOAD FROM (" + cursor + ") OF CURSOR INSERT INTO " + table + "')");
-    }
-
-    public static void insertIntoTableWithoutLogging(String select, String table) throws CannotGetJdbcConnectionException {
-        Connection con = DataSourceUtils.getConnection(getJDBCTemplate().getDataSource());
-        try {
-            // switching to non auto commit mode is necessary because we use DB2 specific commands to turn off logging
-            // turning off logging is necessary because DB2 easily runs out of transaction log space
-            con.setAutoCommit(false);
-            getJDBCTemplate().execute("ALTER TABLE " + table + " ACTIVATE NOT LOGGED INITIALLY");
-            getJDBCTemplate().update("INSERT INTO " + table + " " + select, new Object[]{});
-            getJDBCTemplate().execute("COMMIT");
-            con.setAutoCommit(true);
-        } catch (SQLException ex) {
-            Logger.getLogger(DB2Interface.class.getName()).log(Level.SEVERE, null, ex);
-        }
     }
 }

@@ -20,6 +20,7 @@ import com.google.common.collect.Multiset;
 import de.unibremen.informatik.tdki.combo.common.Tuple;
 import de.unibremen.informatik.tdki.combo.data.DB2Interface;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
+import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
 import de.unibremen.informatik.tdki.combo.data.MemToBulkFileWriter;
 import de.unibremen.informatik.tdki.combo.rewriting.FilterRewriterDB2;
 import de.unibremen.informatik.tdki.combo.syntax.Role;
@@ -39,8 +40,6 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.rowset.SqlRowSet;
 
 /**
  *
@@ -114,10 +113,10 @@ public class DB2FilterQueryAnsweringTest {
         expected.add(new Tuple<String>("b"));
         Assert.assertEquals(expected, tuples);
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, true, false).toString());
-        rs.next();
-        Assert.assertEquals(2, rs.getInt(1));
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<Integer>> tuples2 = TestUtils.getTuples(rewriter.filter(query, true, true, false).toString());
+        Multiset<Tuple<Integer>> expected2 = HashMultiset.create();
+        expected2.add(new Tuple<Integer>(new Integer(2)));
+        Assert.assertEquals(expected2, tuples2);
     }
 
     @Test
@@ -127,8 +126,8 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x", "y"), new RoleAtom("R", "x", "y"));
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertTrue(rs.isEmpty());
     }
 
     @Test
@@ -138,8 +137,8 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x", "y"), new RoleAtom("T", "x", "y"));
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertTrue(rs.isEmpty());
     }
 
     @Test
@@ -164,8 +163,8 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "y"), new RoleAtom("T", "x", "y"));
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertTrue(rs.isEmpty());
     }
 
     @Test
@@ -175,9 +174,8 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new RoleAtom("T", "x", "y"));
         System.out.println(rewriter.filter(query, true, false, false).toString());
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertTrue(rs.next());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertEquals(1, rs.size());
     }
 
     @Test
@@ -186,9 +184,8 @@ public class DB2FilterQueryAnsweringTest {
         loadAndCompleteData();
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new ConceptAtom("A", "x"));
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertTrue(rs.next());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertEquals(1, rs.size());
     }
 
     @Test
@@ -197,9 +194,8 @@ public class DB2FilterQueryAnsweringTest {
         loadAndCompleteData();
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new RoleAtom("R", "x", "y"));
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertTrue(rs.next());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertEquals(1, rs.size());
     }
 
     // fork shaped query
@@ -211,14 +207,11 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x1", "x2"), new RoleAtom("T", "x1", "y"), new RoleAtom("T", "x2", "y"));
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        rs.next();
-        Assert.assertEquals("a", rs.getString(1));
-        Assert.assertEquals("a", rs.getString(2));
-        rs.next();
-        Assert.assertEquals("b", rs.getString(1));
-        Assert.assertEquals("b", rs.getString(2));
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> expected = HashMultiset.create();
+        expected.add(new Tuple<String>("a", "a"));
+        expected.add(new Tuple<String>("b", "b"));
+        Assert.assertEquals(expected, rs);
     }
 
     // Example 10 from the IJCAI11 paper of Carsten
@@ -229,8 +222,8 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("T", "x", "y"), new RoleAtom("R", "y", "z"), new RoleAtom("T", "z", "y"));
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertTrue(rs.isEmpty());
     }
 
     // Example 7 from SSWS+HPCSW 2012 paper 
@@ -251,8 +244,8 @@ public class DB2FilterQueryAnsweringTest {
                 new ConceptAtom("Univ", "y"), new RoleAtom("deptOf", "z", "y"), new ConceptAtom("Dept", "z"), new RoleAtom("teachesAt", "x", "z"));
 
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertTrue(rs.isEmpty());
     }
 
     // Example 8 from SSWS+HPCSW 2012 paper 
@@ -272,16 +265,14 @@ public class DB2FilterQueryAnsweringTest {
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("worksFor", "x", "y"),
                 new RoleAtom("paysSalaryOf", "y", "z"), new RoleAtom("isAffiliatedWith", "u", "z"));
 
-        SqlRowSet rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        rs.next();
-        Assert.assertEquals("a", rs.getString(1));
-        Assert.assertFalse(rs.next());
+        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> expected = HashMultiset.create();
+        expected.add(new Tuple<String>("a"));
+        Assert.assertEquals(expected, rs);
 
         query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("worksFor", "x", "y"),
                 new RoleAtom("paysSalaryOf", "y", "z"), new RoleAtom("worksFor", "z", "u"));
-        rs = jdbcTemplate.queryForRowSet(rewriter.filter(query, true, false, false).toString());
-        rs.next();
-        Assert.assertEquals("a", rs.getString(1));
-        Assert.assertFalse(rs.next());
+        rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Assert.assertEquals(expected, rs);
     }
 }

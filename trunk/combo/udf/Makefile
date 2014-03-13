@@ -5,7 +5,7 @@
 # where the value is the directory that the Boost header files reside.
 
 # The following variable must be set to the correct path of the DB2 header files 
-DB2_INCLUDE_DIR=/opt/ibm/db2/V9.7/include
+DB2_INCLUDE_DIR=/opt/ibm/db2/V10.5/include
 
 # Change it to -m32 if you are not using a 64-bit environment
 ARCHITECTURE=-m64

@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.springframework.jdbc.core.RowCallbackHandler;
 
 /**
  *
@@ -78,6 +77,7 @@ public class DBToMemLoader {
     private EncodingManagerDB2 materializeSymbols() {
         final Map<String, Integer> map = new HashMap<String, Integer>();
         DB2Interface.getJDBCTemplate().query("SELECT name, id FROM " + DBLayout.getTableSymbols(project), new RowCallbackHandler() {
+
             @Override
             public void processRow(ResultSet rs) throws SQLException {
                 String name = rs.getString(1);
@@ -92,6 +92,7 @@ public class DBToMemLoader {
     private void materializeConceptAssertions(final EncodingManagerDB2 manager) {
         String selectConceptAssertions = "SELECT concept, individual FROM " + DBLayout.getTableConceptAssertions(project);
         DB2Interface.getJDBCTemplate().query(selectConceptAssertions, new RowCallbackHandler() {
+
             @Override
             public void processRow(ResultSet rs) throws SQLException {
                 ConceptAssertion ca = new ConceptAssertion();
@@ -105,6 +106,7 @@ public class DBToMemLoader {
     private void materializeRoleAssertions(final EncodingManagerDB2 manager) {
         String selectRoleAssertions = "SELECT role, lhs, rhs FROM " + DBLayout.getTableRoleAssertions(project);
         DB2Interface.getJDBCTemplate().query(selectRoleAssertions, new RowCallbackHandler() {
+
             @Override
             public void processRow(ResultSet rs) throws SQLException {
                 ObjectRoleAssertion ra = new ObjectRoleAssertion();
@@ -139,6 +141,7 @@ public class DBToMemLoader {
     private void materializeRoleInclusions(final EncodingManagerDB2 manager) {
         String selectMaterializeInclusionAxioms = "SELECT lhs, rhs FROM " + DBLayout.getTableRBox(project);
         DB2Interface.getJDBCTemplate().query(selectMaterializeInclusionAxioms, new RowCallbackHandler() {
+
             @Override
             public void processRow(ResultSet rs) throws SQLException {
                 RoleRestriction lhs = (RoleRestriction) manager.getConcept(rs.getInt(1));
@@ -151,6 +154,7 @@ public class DBToMemLoader {
     private void materializeConceptInclusions(final EncodingManagerDB2 manager) {
         String selectMaterializeInclusionAxioms = "SELECT lhs, rhs FROM " + DBLayout.getTableTBox(project);
         DB2Interface.getJDBCTemplate().query(selectMaterializeInclusionAxioms, new RowCallbackHandler() {
+
             @Override
             public void processRow(ResultSet rs) throws SQLException {
                 Concept lhs = manager.getConcept(rs.getInt(1));
