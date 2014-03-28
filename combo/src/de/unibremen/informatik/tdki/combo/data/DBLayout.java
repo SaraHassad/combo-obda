@@ -29,8 +29,6 @@ import java.util.logging.Logger;
  */
 public class DBLayout {
 
-    private static final String DELTA_CONCEPT_ASSERTIONS = "DeltaConceptAssertions";
-    private static final String DELTA_ROLE_ASSERTIONS = "DeltaRoleAssertions";
     private static final String PROJECTS = "Projects";
     private boolean useInsert;
     private JdbcTemplate jdbcTemplate;
@@ -81,13 +79,6 @@ public class DBLayout {
 
     public static String getTableQualifiedExistentials(String project) {
         return getTable(project, QUALIFIED_EXISTENTIALS);
-    }
-
-    private void initDeltaTables() {
-        DB2Interface.safeDropTable(DELTA_CONCEPT_ASSERTIONS);
-        DB2Interface.safeDropTable(DELTA_ROLE_ASSERTIONS);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + DELTA_CONCEPT_ASSERTIONS + " (concept integer, individual integer)");
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + DELTA_ROLE_ASSERTIONS + " (role integer, lhs integer, rhs integer)");
     }
 
     private void initRBox(String project) {
@@ -274,8 +265,6 @@ public class DBLayout {
         }
         DB2Interface.safeDropTable(PROJECTS);
         jdbcTemplate.execute("CREATE TABLE " + PROJECTS + " (name character varying(20) NOT NULL PRIMARY KEY)");
-
-        initDeltaTables();
 
         DB2Interface.safeDropProcedure("insert_concept_assertions");
         DB2Interface.safeDropProcedure("insert_role_assertions");

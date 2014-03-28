@@ -528,7 +528,6 @@ public class BitRepDataCompletionStrategyTest {
         expectedRA.add(new ObjectRoleAssertion(U, "c_U-1", "c_R1"));
         expectedRA.add(new ObjectRoleAssertion(R, "c_S0", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(U, "c_S0", "c_U0"));
-        expectedRA.add(new ObjectRoleAssertion(U, "a", "c_U0"));
         // role inclusion completion
         expectedRA.add(new ObjectRoleAssertion(U, "a", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(U, "c_S1", "c_R1"));
@@ -596,13 +595,9 @@ public class BitRepDataCompletionStrategyTest {
         expected.add(new ObjectRoleAssertion(P, "c_U0", "c_P0"));
         expected.add(new ObjectRoleAssertion(S, "c_S-0", "c_R0"));
         expected.add(new ObjectRoleAssertion(U, "c_U-0", "c_T0"));
-        expected.add(new ObjectRoleAssertion(S, "a", "c_S0"));
-        expected.add(new ObjectRoleAssertion(T, "c_S0", "c_T0"));
-        expected.add(new ObjectRoleAssertion(U, "c_S0", "c_U0"));
         // role inclusion completion        
         expected.add(new ObjectRoleAssertion(S, "a", "c_R0"));
         expected.add(new ObjectRoleAssertion(U, "c_R0", "c_T0"));
-        expected.add(new ObjectRoleAssertion(U, "c_S0", "c_T0"));
         Assert.assertEquals(expected, materializer.getRoleAssertions());
     }
 
@@ -650,7 +645,6 @@ public class BitRepDataCompletionStrategyTest {
 
         Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
         expectedRA.add(new ObjectRoleAssertion(R, "a", "c_R0"));
-        expectedRA.add(new ObjectRoleAssertion(S, "a", "c_S0"));
         expectedRA.add(new ObjectRoleAssertion(S, "a", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(S, "c_S-0", "c_R0"));
         Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
@@ -691,7 +685,6 @@ public class BitRepDataCompletionStrategyTest {
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
         
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(R, "a", anonIndv.toString()), 
-                new ObjectRoleAssertion(R, "a", "c_R0"),
                 new ObjectRoleAssertion(R, "c_R-0", anonIndv.toString())),
                 materializer.getRoleAssertions());
         

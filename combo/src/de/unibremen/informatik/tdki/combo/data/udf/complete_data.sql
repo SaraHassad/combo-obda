@@ -17,26 +17,12 @@ BEGIN
   DECLARE GeneratingRoles VARCHAR(50);
   DECLARE GeneratingConcepts VARCHAR(50);
 
-  -- The following are the completion queries we are going to use
+  -- variable for storing dynamic SQL statements
+  -- there is a limit on max length of VARCHAR that depends on page size
+  -- in any case, it is strictly less than the page size, which we assume to be 4096 bytes
+  DECLARE dsql VARCHAR(3500); 
 
-  -- role inclusion completion query
-  DECLARE complete_ri VARCHAR(1024); 
-
-  -- concept inclusion completion query with concept names on the right
-  DECLARE complete_ci_x_cn VARCHAR(1024);
-
-  -- role assertions connecting named individuals to anonymous ones
-  DECLARE complete_first_level VARCHAR(5500);
-
-  --  query for selecting anonymous individuals
-  DECLARE select_anonymous_individuals VARCHAR(255); 
- 
-  -- role assertions among anonymous individuals
-  DECLARE select_anonymous_role VARCHAR(1024);
-
-  -- concept assertions for anonymous individuals
-  DECLARE select_anonymous_concept VARCHAR(1024);
-
+  -- assign table names
   SET ConceptAssertions = project || '_ConceptAssertions';
   SET RoleAssertions = project || '_RoleAssertions';
   SET RoleInclusions = project || '_RoleInclusions';
@@ -45,150 +31,341 @@ BEGIN
   SET GeneratingRoles = project || '_GeneratingRoles';
   SET GeneratingConcepts = project || '_GeneratingConcepts';
 
-  SET complete_ri = '
+  -- role inclusion completion query
+  SET dsql = '
     WITH
     ri_rn_rn (role, lhs, rhs) AS (
       SELECT ri.rhs, ra.lhs, ra.rhs 
       FROM ' || RoleAssertions || ' ra, ' || RoleInclusions || ' ri 
-      WHERE ra.role=ri.lhs AND BITAND(ri.rhs,10)=8
+      WHERE BITAND(ri.lhs,10)=8 AND BITAND(ri.rhs,10)=8 AND ra.role=ri.lhs 
     ),
     ri_rn_inv (role, lhs, rhs) AS (
       SELECT BITXOR(ri.rhs,2), ra.rhs, ra.lhs 
       FROM ' || RoleAssertions || ' ra, ' || RoleInclusions || ' ri 
-      WHERE ra.role=ri.lhs AND BITAND(ri.rhs,2)=2
+      WHERE BITAND(ri.lhs,10)=8 AND BITAND(ri.rhs,2)=2 AND ra.role=ri.lhs
     )
     (SELECT * FROM ri_rn_rn UNION SELECT * FROM ri_rn_inv) EXCEPT SELECT * FROM ' || RoleAssertions;
 
-  SET complete_ci_x_cn = '
+  DECLARE GLOBAL TEMPORARY TABLE Stage1 (role integer, lhs integer, rhs integer) ON COMMIT PRESERVE ROWS NOT LOGGED WITH REPLACE;
+  EXECUTE IMMEDIATE 'INSERT INTO Session.Stage1 ' || dsql;
+  CALL insert_role_assertions('SELECT * FROM Session.Stage1', project);
+  -- Do not drop this temporary table yet, we will use it
+  -- DROP TABLE Session.Stage1;
+
+  -- concept inclusion completion query with concept names on the right
+  SET dsql = '
     WITH
     ci_cn_cn (concept, individual) AS (
     SELECT rhs, individual 
     FROM ' || ConceptAssertions || ', ' || InclusionAxioms || '
-    WHERE concept=lhs AND BITAND(rhs,12)=0
+    WHERE BITAND(lhs,12)=0 AND BITAND(rhs,12)=0 AND concept=lhs
     ),
     ci_rn_cn (concept, individual) AS (
     SELECT ia.rhs, ra.lhs 
     FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia 
-    WHERE ra.role=ia.lhs AND BITAND(ia.rhs,12)=0
+    WHERE BITAND(ia.lhs,10)=8 AND BITAND(ia.rhs,12)=0 AND ra.role=ia.lhs
     ),
     ci_inv_cn (concept, individuals) AS (
     SELECT ia.rhs, ra.rhs 
     FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia 
-    WHERE BITAND(ia.lhs,2)=2 AND ra.role=BITXOR(ia.lhs,2) AND BITAND(ia.rhs,12)=0
+    WHERE BITAND(ia.lhs,2)=2 AND BITAND(ia.rhs,12)=0 AND ra.role=BITXOR(ia.lhs,2)
     )
     (SELECT * FROM ci_cn_cn UNION SELECT * FROM ci_rn_cn UNION SELECT * FROM ci_inv_cn) EXCEPT SELECT * FROM ' || ConceptAssertions;
 
-  SET complete_first_level = '
+  DECLARE GLOBAL TEMPORARY TABLE Stage2 (concept integer, individual integer) ON COMMIT PRESERVE ROWS NOT LOGGED WITH REPLACE;
+  EXECUTE IMMEDIATE 'INSERT INTO Session.Stage2 ' || dsql;
+  CALL insert_concept_assertions('SELECT * FROM Session.Stage2', project);
+  -- Do not drop this temporary table yet, we will use it
+  -- DROP TABLE Session.Stage2;
+
+  -- Pairs of the form (o,c_r), where o is a named individual, c_r anonymous, and o requires an r-successor
+  -- There may be a lot of redundancies, e.g., o might already have an r-successor
+  -- Nevertheless, we need to materialize some of these pairs in order to be able to eliminate redundancies efficiently later on
+  SET dsql = '
     WITH
-    ci_cn_rn (role, lhs) AS (
-    SELECT ia.rhs, ca.individual
-    FROM ' || ConceptAssertions || ' ca, ' || InclusionAxioms || ' ia 
-    WHERE ca.concept=ia.lhs AND BITAND(ia.rhs,10)=8 AND
-    ia.rhs NOT IN (SELECT newrole FROM ' || QualifiedExistentials || ')
+    hasOutgoingRN(c0, c1) AS 
+    (
+      SELECT
+        t0.o1, t0.r
+      FROM ' ||
+        RoleAssertions || ' AS t0(r,o1,o2)
     ),
-    ci_rn_rn (role, lhs) AS (
-    SELECT ia.rhs, ra.lhs
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia 
-    WHERE ra.role=ia.lhs AND BITAND(ia.rhs,10)=8 AND
-    ia.rhs NOT IN (SELECT newrole FROM ' || QualifiedExistentials || ')
+    hasOutgoingInv(c0, c1) AS 
+    (
+      SELECT
+        t0.o2, BITXOR(t0.r,2)
+      FROM ' ||
+        RoleAssertions || ' AS t0(r,o1,o2)
     ),
-    ci_inv_rn (role, lhs) AS (
-    SELECT ia.rhs, ra.rhs
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia 
-    WHERE BITAND(ia.lhs,2)=2 AND ra.role=BITXOR(ia.lhs,2) AND BITAND(ia.rhs,10)=8 AND
-    ia.rhs NOT IN (SELECT newrole FROM ' || QualifiedExistentials || ')
+    FirstLevel(c0, c1) AS 
+    (
+      SELECT
+        t1.o, t0.r
+      FROM ' ||
+        InclusionAxioms || ' AS t0(c,r), ' || ConceptAssertions || ' AS t1(c,o)
+      WHERE
+        t0.c=t1.c AND BITAND(t0.c,12)=0 AND BITAND(t0.r,10)=8
+      UNION
+      SELECT
+        t1.o, t0.r2
+      FROM ' ||
+        InclusionAxioms || ' AS t0(r1,r2), hasOutgoingRN AS t1(o,r1)
+      WHERE
+        t0.r1=t1.r1 AND BITAND(t0.r1,10)=8 AND BITAND(t0.r2,10)=8
+      UNION
+      SELECT
+        t1.o, t0.r2
+      FROM ' ||
+        InclusionAxioms || ' AS t0(r1,r2), hasOutgoingInv AS t1(o,r1)
+      WHERE
+        t0.r1=t1.r1 AND BITAND(t0.r1,2)=2 AND BITAND(t0.r2,10)=8
+      UNION
+      SELECT
+        t1.o, t0.r
+      FROM ' || 
+        InclusionAxioms || ' AS t0(c,r), ' || ConceptAssertions || ' AS t1(c,o)
+      WHERE
+        t0.c=t1.c AND BITAND(t0.c,12)=0 AND BITAND(t0.r,2)=2
+      UNION
+      SELECT
+        t1.o, t0.r2
+      FROM ' ||
+        InclusionAxioms || ' AS t0(r1,r2), hasOutgoingRN AS t1(o,r1)
+      WHERE
+        t0.r1=t1.r1 AND BITAND(t0.r1,10)=8 AND BITAND(t0.r2,2)=2
+      UNION
+      SELECT
+        t1.o, t0.r2
+      FROM ' ||
+        InclusionAxioms || ' AS t0(r1,r2), hasOutgoingInv AS t1(o,r1)
+      WHERE
+        t0.r1=t1.r1 AND BITAND(t0.r1,2)=2 AND BITAND(t0.r2,2)=2
     ),
-    ci_cn_qrn (role, lhs, rhs) AS (
-    SELECT qe.originalrole, ca.individual, qe.newrole
-    FROM ' || ConceptAssertions || ' ca, ' || InclusionAxioms || ' ia, ' || QualifiedExistentials || ' qe
-    WHERE ca.concept=ia.lhs AND ia.rhs=qe.newrole AND BITAND(qe.originalrole,10)=8 
+    hasOutgoingRNQ(c0, c1, c2) AS 
+    (
+      SELECT
+        t0.o1, t0.r, t1.c
+      FROM ' ||
+        RoleAssertions || ' AS t0(r,o1,o2), ' || ConceptAssertions || ' AS t1(c,o2)
+      WHERE
+        t0.o2=t1.o2
     ),
-    ci_rn_qrn (role, lhs, rhs) AS (
-    SELECT qe.originalrole, ra.lhs, qe.newrole
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia, ' || QualifiedExistentials || ' qe 
-    WHERE ra.role=ia.lhs AND ia.rhs=qe.newrole AND BITAND(qe.originalrole,10)=8
+    hasOutgoingInvQ(c0, c1, c2) AS 
+    (
+      SELECT
+        t0.o2, BITXOR(t0.r,2), t1.c
+      FROM ' ||
+        RoleAssertions || ' AS t0(r,o1,o2), ' || ConceptAssertions || ' AS t1(c,o1)
+      WHERE
+        t0.o1=t1.o1
     ),
-    ci_inv_qrn (role, lhs, rhs) AS (
-    SELECT qe.originalrole, ra.rhs, qe.newrole
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia, ' || QualifiedExistentials || ' qe 
-    WHERE BITAND(ia.lhs,2)=2 AND ra.role=BITXOR(ia.lhs,2) AND ia.rhs=qe.newrole AND BITAND(qe.originalrole,10)=8
-    ),    
-    first_level_urn (role, lhs) AS ((SELECT * FROM ci_cn_rn UNION SELECT * FROM ci_rn_rn UNION SELECT * FROM ci_inv_rn) EXCEPT SELECT role, lhs FROM ' || RoleAssertions || '),
-    first_level_qrn (role, lhs, rhs) AS (
-      (SELECT * FROM ci_cn_qrn UNION SELECT * FROM ci_rn_qrn UNION SELECT * FROM ci_inv_qrn) EXCEPT 
-      SELECT qe.originalrole, ra.lhs, qe.newrole
-      FROM ' || RoleAssertions || ' ra, ' || ConceptAssertions || ' ca, ' || QualifiedExistentials || ' qe 
-      WHERE ra.role=qe.originalrole AND ra.rhs=ca.individual AND ca.concept=qe.conceptname
-    ),
-    ci_cn_inv (lhs, rhs) AS (    
-    SELECT ia.rhs, ca.individual 
-    FROM ' || ConceptAssertions || ' ca, ' || InclusionAxioms || ' ia 
-    WHERE ca.concept=ia.lhs AND BITAND(ia.rhs,2)=2
-    ),
-    ci_rn_inv (lhs, rhs) AS (
-    SELECT ia.rhs, ra.lhs 
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia 
-    WHERE ra.role=ia.lhs AND BITAND(ia.rhs,2)=2
-    ),
-    ci_inv_inv (lhs, rhs) AS (
-    SELECT ia.rhs, ra.rhs 
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia 
-    WHERE BITAND(ia.lhs,2)=2 AND ra.role=BITXOR(ia.lhs,2) AND BITAND(ia.rhs,2)=2
-    ),
-    ci_cn_qinv (role, lhs, rhs) AS (
-    SELECT BITXOR(qe.originalrole,2), qe.newrole, ca.individual 
-    FROM ' || ConceptAssertions || ' ca, ' || InclusionAxioms || ' ia, ' || QualifiedExistentials || ' qe 
-    WHERE ca.concept=ia.lhs AND ia.rhs=qe.newrole AND BITAND(qe.originalrole,2)=2
-    ), 
-    ci_rn_qinv (role, lhs, rhs) AS (
-    SELECT BITXOR(qe.originalrole,2), qe.newrole, ra.lhs 
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia, ' || QualifiedExistentials || ' qe 
-    WHERE ra.role=ia.lhs AND ia.rhs=qe.newrole AND BITAND(qe.originalrole,2)=2
-    ),
-    ci_inv_qinv (role, lhs, rhs) AS (
-    SELECT BITXOR(qe.originalrole,2), qe.newrole, ra.rhs 
-    FROM ' || RoleAssertions || ' ra, ' || InclusionAxioms || ' ia, ' || QualifiedExistentials || ' qe 
-    WHERE BITAND(ia.lhs,2)=2 AND ra.role=BITXOR(ia.lhs,2) AND ia.rhs=qe.newrole AND BITAND(qe.originalrole,2)=2
-    ),
-    first_level_uinv (lhs, rhs) AS ((SELECT * FROM ci_cn_inv UNION SELECT * FROM ci_rn_inv UNION SELECT * FROM ci_inv_inv) EXCEPT SELECT BITXOR(role,2), rhs FROM ' || RoleAssertions || '),
-    first_level_qinv (role, lhs, rhs) AS (
-      (SELECT * FROM ci_cn_qinv UNION SELECT * FROM ci_rn_qinv UNION SELECT * FROM ci_inv_qinv) EXCEPT
-      SELECT BITXOR(qe.originalrole,2), qe.newrole, ra.rhs 
-      FROM ' || RoleAssertions || ' ra, ' || ConceptAssertions || ' ca, ' || QualifiedExistentials || ' qe 
-      WHERE BITAND(qe.originalrole,2)=2 AND ra.role=BITXOR(qe.originalrole,2) AND ra.lhs=ca.individual AND ca.concept=qe.conceptname
-    )    
-    SELECT role, lhs, role FROM first_level_urn UNION 
-    SELECT role, lhs, rhs FROM first_level_qrn UNION
-    SELECT BITXOR(lhs,2), lhs, rhs FROM first_level_uinv UNION
-    SELECT role, lhs, rhs FROM first_level_qinv';
+    RedundantFLReasonABox(c0, c1) AS 
+    (
+      SELECT
+        t0.o, t0.r
+      FROM
+        hasOutgoingRN AS t0(o,r)
+      UNION
+      SELECT
+        t0.o, t0.r
+      FROM
+        hasOutgoingInv AS t0(o,r)
+      UNION
+      SELECT
+        t1.o, t0.r
+      FROM ' ||
+        QualifiedExistentials || ' AS t0(r,s,c), hasOutgoingRNQ AS t1(o,s,c)
+      WHERE
+        t0.c=t1.c AND t0.s=t1.s AND BITAND(t0.s,10)=8
+      UNION
+      SELECT
+        t1.o, t0.r
+      FROM ' ||
+        QualifiedExistentials || ' AS t0(r,s,c), hasOutgoingInvQ AS t1(o,s,c)
+      WHERE
+        t0.c=t1.c AND t0.s=t1.s AND BITAND(t0.s,2)=2
+    )
+    SELECT * FROM FirstLevel EXCEPT SELECT * FROM RedundantFLReasonABox'; 
 
-  SET select_anonymous_individuals = 'SELECT lhs FROM ' || RoleAssertions || ' WHERE lhs > 0 UNION SELECT rhs FROM ' || RoleAssertions || ' WHERE rhs > 0';
-
-  SET select_anonymous_role = '
+  DECLARE GLOBAL TEMPORARY TABLE Stage3 (individual integer, anonymous integer) ON COMMIT PRESERVE ROWS NOT LOGGED WITH REPLACE;
+  CREATE INDEX Session.Stage3_ind_anon ON Session.Stage3
+  (
+    individual, anonymous
+  );
+  EXECUTE IMMEDIATE 'INSERT INTO Session.Stage3 ' || dsql;
+  
+  SET dsql = '  
     WITH
-    Anonymous (individual) AS (' || select_anonymous_individuals || ')
-
-    SELECT gr.role, gr.lhs, gr.rhs 
-    FROM ' || GeneratingRoles || ' gr 
-    WHERE gr.anonindv IN (SELECT individual FROM Anonymous) AND BITAND(gr.role,10)=8
+    EquivalentRoles(c0, c1) AS 
+    (
+      SELECT
+        t0.r, t0.s
+      FROM ' ||
+        RoleInclusions || ' AS t0(r,s), ' || RoleInclusions || ' AS t1(s,r)
+      WHERE
+        t0.r=t1.r AND t0.s=t1.s AND t0.r < t0.s
+    ),
+    RedundantFLReasonTBox(c0, c1) AS 
+    (
+      SELECT
+        t1.o, t0.r
+      FROM ' ||
+        RoleInclusions || ' AS t0(s,r), Session.Stage3 AS t1(o,r), Session.Stage3 AS t2(o,s)
+      WHERE
+        t1.o=t2.o AND t0.r=t1.r AND t0.s=t2.s AND NOT EXISTS 
+        (
+          SELECT
+            1
+          FROM ' ||
+            RoleInclusions || ' AS t(r,s)
+          WHERE
+            t.r=t0.r AND t.s=t0.s
+        )
+      UNION
+      SELECT
+        t1.o, t0.r
+      FROM
+        EquivalentRoles AS t0(s,r), Session.Stage3 AS t1(o,r)
+      WHERE
+        t0.r=t1.r
+      UNION
+      SELECT
+        t3.o, t1.r2
+      FROM ' ||
+        QualifiedExistentials || ' AS t0(r1,s,c1), ' || QualifiedExistentials || ' AS t1(r2,s,c2), ' || InclusionAxioms || ' AS t2(c1,c2), Session.Stage3 AS t3(o,r1), Session.Stage3 AS t4(o,r2)
+      WHERE
+        t0.c1=t2.c1 AND t1.c2=t2.c2 AND t3.o=t4.o AND t0.r1=t3.r1 AND t1.r2=t4.r2 AND t0.s=t1.s AND NOT EXISTS 
+        (
+          SELECT
+            1
+          FROM ' ||
+            InclusionAxioms || ' AS t(c2,c1)
+          WHERE
+            t.c2=t1.c2 AND t.c1=t0.c1
+        )
+      UNION
+      SELECT
+        t4.o, t1.r2
+      FROM ' || 
+        QualifiedExistentials || ' AS t0(r1,s,c1), ' || QualifiedExistentials || ' AS t1(r2,s,c2), ' || InclusionAxioms || ' AS t2(c1,c2), ' || InclusionAxioms || ' AS t3(c2,c1), Session.Stage3 AS t4(o,r1), Session.Stage3 AS t5(o,r2)
+      WHERE
+        t0.c1=t2.c1 AND t0.c1=t3.c1 AND t1.c2=t2.c2 AND t1.c2=t3.c2 AND t4.o=t5.o AND t0.r1=t4.r1 AND t1.r2=t5.r2 AND t0.s=t1.s AND t0.r1 < t1.r2
+    ),
+    Stage4(c0, c1) AS 
+    (
+      SELECT
+        t0.o, t0.r
+      FROM
+        Session.Stage3 AS t0(o,r)
+      EXCEPT
+      SELECT
+        t.o, t.r
+      FROM RedundantFLReasonTBox AS t(o,r)
+    ),
+    isNewRole(c0) AS 
+    (
+      SELECT
+        t0.r1
+      FROM ' ||
+        QualifiedExistentials || ' AS t0(r1,r2,c)
+    )
+    SELECT
+      t0.r, t0.o, t0.r
+    FROM
+      Stage4 AS t0(o,r)
+    WHERE
+      NOT EXISTS 
+      (
+        SELECT
+          1
+        FROM
+          isNewRole AS t(r)
+        WHERE
+          t.r=t0.r
+      ) AND BITAND(t0.r,10)=8
     UNION
-    SELECT BITXOR(gr.role,2), gr.rhs, gr.lhs 
-    FROM ' || GeneratingRoles || ' gr 
-    WHERE gr.anonindv IN (SELECT individual FROM Anonymous) AND BITAND(gr.role,2)=2';
+    SELECT
+      BITXOR(t0.r,2), t0.r, t0.o
+    FROM
+      Stage4 AS t0(o,r)
+    WHERE
+      BITAND(t0.r,2)=2
+    UNION
+    SELECT
+      t0.r2, t1.o, t0.r1
+    FROM ' || 
+      RoleInclusions || ' AS t0(r1,r2), Stage4 AS t1(o,r1)
+    WHERE
+      t0.r1=t1.r1 AND BITAND(t0.r2,10)=8
+    UNION
+    SELECT
+      BITXOR(t0.r2,2), t0.r1, t1.o
+    FROM ' ||
+      RoleInclusions || ' AS t0(r1,r2), Stage4 AS t1(o,r1)
+    WHERE
+      t0.r1=t1.r1 AND BITAND(t0.r2,2)=2';
 
-  SET select_anonymous_concept = '
+  CALL insert_role_assertions(dsql, project);
+  DROP TABLE Session.Stage3;
+
+  SET dsql = '                                                                                                                                                                                                              
     WITH
-    Anonymous (individual) AS (' || select_anonymous_individuals || ')
+    Anonymous (individual) AS 
+    (
+      SELECT 
+        lhs 
+      FROM ' || 
+        RoleAssertions || ' 
+      WHERE lhs > 0 
+      UNION 
+      SELECT 
+        rhs 
+      FROM ' || 
+        RoleAssertions || ' 
+      WHERE rhs > 0
+    )                                                                                                                                                                       
+    SELECT 
+      gr.role, gr.lhs, gr.rhs                                                                                                                                                                                                           
+    FROM ' || 
+      GeneratingRoles || ' gr                                                                                                                                                                                                        
+    WHERE 
+      gr.anonindv IN (SELECT individual FROM Anonymous) AND BITAND(gr.role,10)=8                                                                                                                                                     
+    UNION
+    SELECT 
+      BITXOR(gr.role,2), gr.rhs, gr.lhs                                                                                                                                                                                                 
+    FROM ' || GeneratingRoles || ' gr   
+    WHERE 
+      gr.anonindv IN (SELECT individual FROM Anonymous) AND BITAND(gr.role,2)=2';
 
-    SELECT concept, individual
-    FROM ' || GeneratingConcepts || '
-    WHERE individual IN (SELECT individual FROM Anonymous)';
+  EXECUTE IMMEDIATE 'INSERT INTO Session.Stage1 ' || dsql;
+  CALL insert_role_assertions('SELECT * FROM Session.Stage1', project);
+  DROP TABLE Session.Stage1;
 
-  CALL insert_role_assertions(complete_ri, project);
-  CALL insert_concept_assertions(complete_ci_x_cn, project);
-  CALL insert_role_assertions(complete_first_level, project);
-  CALL insert_role_assertions(complete_ri, project);
-  CALL insert_role_assertions(select_anonymous_role, project);
-  CALL insert_concept_assertions(select_anonymous_concept, project);
+  SET dsql = '                                                                                                                                                                                                              
+    WITH
+    Anonymous (individual) AS 
+    (
+      SELECT 
+        lhs 
+      FROM ' || 
+        RoleAssertions || ' 
+      WHERE lhs > 0 
+      UNION 
+      SELECT 
+        rhs 
+      FROM ' || 
+        RoleAssertions || ' 
+      WHERE rhs > 0
+    )
+    SELECT 
+      concept, individual
+    FROM ' || 
+      GeneratingConcepts || '                                                                                                                                                                                                        
+    WHERE 
+      individual IN (SELECT individual FROM Anonymous)';
+
+  EXECUTE IMMEDIATE 'INSERT INTO Session.Stage2 ' || dsql;
+  CALL insert_concept_assertions('SELECT * FROM Session.Stage2', project);
+  DROP TABLE Session.Stage2;
 END
 @
