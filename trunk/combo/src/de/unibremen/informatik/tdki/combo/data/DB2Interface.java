@@ -18,8 +18,6 @@ package de.unibremen.informatik.tdki.combo.data;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -116,19 +114,19 @@ public class DB2Interface {
     }
 
     public static void safeDropView(String viewname) {
-//        try {
+        try {
             getJDBCTemplate().execute("DROP VIEW " + viewname);
-//        } catch (BadSqlGrammarException e) {
-//            // object does not exist
-//        }
+        } catch (DBObjectDoesNotExistException e) {
+            // object does not exist
+        }
     }
     
     public static void safeDropProcedure(String name) {
-//        try {
+        try {
             getJDBCTemplate().execute("DROP PROCEDURE " + name);
-//        } catch (BadSqlGrammarException e) {
-//            // object does not exist
-//        }
+        } catch (DBObjectDoesNotExistException e) {
+            // object does not exist
+        }
     }
 
     public static void loadReplaceIntoTable(String cursor, String table) {
