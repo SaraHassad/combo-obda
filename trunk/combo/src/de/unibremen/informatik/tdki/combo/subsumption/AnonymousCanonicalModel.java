@@ -197,6 +197,7 @@ public class AnonymousCanonicalModel {
 
     private void generateLeadsTo() {
         leadsTo = new SimpleDirectedGraph<Role, DefaultEdge>(DefaultEdge.class);
+        final RoleComparator comparator = new RoleComparator();
         for (Concept c : reasoner.getTBoxConcepts()) {
             c.accept(new ConceptVisitor() {
                 @Override
@@ -211,37 +212,30 @@ public class AnonymousCanonicalModel {
 
                 @Override
                 public void visitRoleRestriction(RoleRestriction e) {
-                    for (Concept c : reasoner.getSuperConcepts(e)) {
-                        final Role r = e.getRole();
-                        c.accept(new ConceptVisitor() {
-                            @Override
-                            public void visitConceptName(ConceptName c) {
-                                // intentionally do nothing
+                    Role r = e.getRole();
+                    Set<Role> allLeadsTo = getNonOptimizedLeadsTo(e);
+                    Set<Role> redundantLeadsTo = new HashSet<Role>();
+                    // find redundancies in allLeadsTo
+                    for (Role s : allLeadsTo) {
+                        if (reasoner.getSuperRoles(r).contains(s)) {
+                            redundantLeadsTo.add(s);
+                            continue;
+                        }
+                        for (Role t : allLeadsTo) {
+                            if (reasoner.getSuperRoles(t).contains(s) && !reasoner.getSuperRoles(s).contains(t)) {
+                                redundantLeadsTo.add(s);
+                                break;
+                            } else if (reasoner.getSuperRoles(t).contains(s) && reasoner.getSuperRoles(s).contains(t) && comparator.compare(t, s) < 0) {
+                                redundantLeadsTo.add(s);
+                                break;
                             }
-
-                            @Override
-                            public void visitBooleanConcept(BooleanConcept bd) {
-                                throw new UnsupportedOperationException("Not supported yet.");
-                            }
-
-                            @Override
-                            public void visitRoleRestriction(RoleRestriction f) {
-                                Role s = f.getRole();
-                                leadsTo.addVertex(r);
-                                leadsTo.addVertex(s);
-                                leadsTo.addEdge(r, s);
-                            }
-
-                            @Override
-                            public void visitQualifiedNoRestriction(QualifiedNoRestriction restriction) {
-                                throw new UnsupportedOperationException("Not supported yet.");
-                            }
-
-                            @Override
-                            public void visitNominal(Nominal nominal) {
-                                throw new UnsupportedOperationException("Not supported yet.");
-                            }
-                        });
+                        }
+                    }
+                    allLeadsTo.removeAll(redundantLeadsTo);
+                    for (Role s : allLeadsTo) {
+                        leadsTo.addVertex(r);
+                        leadsTo.addVertex(s);
+                        leadsTo.addEdge(r, s);
                     }
                 }
 
@@ -256,5 +250,39 @@ public class AnonymousCanonicalModel {
                 }
             });
         }
+    }
+
+    private Set<Role> getNonOptimizedLeadsTo(RoleRestriction e) {
+        final Set<Role> result = new HashSet<Role>();
+        for (Concept c : reasoner.getSuperConcepts(e)) {
+            c.accept(new ConceptVisitor() {
+                @Override
+                public void visitConceptName(ConceptName c) {
+                    // intentionally do nothing
+                }
+
+                @Override
+                public void visitBooleanConcept(BooleanConcept bd) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+
+                @Override
+                public void visitRoleRestriction(RoleRestriction f) {
+                    Role s = f.getRole();
+                    result.add(s);
+                }
+
+                @Override
+                public void visitQualifiedNoRestriction(QualifiedNoRestriction restriction) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+
+                @Override
+                public void visitNominal(Nominal nominal) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+            });
+        }
+        return result;
     }
 }
