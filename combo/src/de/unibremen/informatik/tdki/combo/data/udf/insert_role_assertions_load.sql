@@ -1,5 +1,5 @@
 CREATE PROCEDURE insert_role_assertions
-(IN query VARCHAR(6000),
+(IN query CLOB(10000),
  IN project VARCHAR(20))
 LANGUAGE SQL	 
 BEGIN

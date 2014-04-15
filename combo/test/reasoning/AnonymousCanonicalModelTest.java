@@ -173,10 +173,6 @@ public class AnonymousCanonicalModelTest {
         expected.add(new AnonymousRoleAssertion(T, new AnonymousIndividual(R), new AnonymousIndividual(T)));
         expected.add(new AnonymousRoleAssertion(U, new AnonymousIndividual(R), new AnonymousIndividual(T)));
         expected.add(new AnonymousRoleAssertion(P, new AnonymousIndividual(T), new AnonymousIndividual(P)));
-        expected.add(new AnonymousRoleAssertion(invS, new AnonymousIndividual(R), new AnonymousIndividual(invS)));
-        expected.add(new AnonymousRoleAssertion(invU, new AnonymousIndividual(T), new AnonymousIndividual(invU)));
-        expected.add(new AnonymousRoleAssertion(U, new AnonymousIndividual(R), new AnonymousIndividual(U)));
-        expected.add(new AnonymousRoleAssertion(P, new AnonymousIndividual(U), new AnonymousIndividual(P)));
         Set<AnonymousRoleAssertion> actual = model.getRoleAssertions(new AnonymousIndividual(R));
         Assert.assertEquals(expected, actual);
     }
@@ -203,19 +199,17 @@ public class AnonymousCanonicalModelTest {
         AnonymousCanonicalModel model = new AnonymousCanonicalModel(reasoner);
 
         Set<AnonymousRoleAssertion> expected = new HashSet<AnonymousRoleAssertion>();
-        expected.add(new AnonymousRoleAssertion(U, new AnonymousIndividual(R), new AnonymousIndividual(U)));
         expected.add(new AnonymousRoleAssertion(S, new AnonymousIndividual(R), new AnonymousIndividual(S, true)));
         expected.add(new AnonymousRoleAssertion(U, new AnonymousIndividual(R), new AnonymousIndividual(S, true)));
-        expected.add(new AnonymousRoleAssertion(invU, new AnonymousIndividual(S, true), new AnonymousIndividual(invU, true)));
         expected.add(new AnonymousRoleAssertion(R, new AnonymousIndividual(S, true), new AnonymousIndividual(R, true)));
         expected.add(new AnonymousRoleAssertion(invU, new AnonymousIndividual(S, true), new AnonymousIndividual(R, true)));
-        expected.add(new AnonymousRoleAssertion(U, new AnonymousIndividual(R, true), new AnonymousIndividual(U, true)));
         expected.add(new AnonymousRoleAssertion(S, new AnonymousIndividual(R, true), new AnonymousIndividual(S)));
         expected.add(new AnonymousRoleAssertion(U, new AnonymousIndividual(R, true), new AnonymousIndividual(S)));
-        expected.add(new AnonymousRoleAssertion(invU, new AnonymousIndividual(S), new AnonymousIndividual(invU)));
         expected.add(new AnonymousRoleAssertion(R, new AnonymousIndividual(S), new AnonymousIndividual(R)));
         expected.add(new AnonymousRoleAssertion(invU, new AnonymousIndividual(S), new AnonymousIndividual(R)));
         Set<AnonymousRoleAssertion> actual = model.getRoleAssertions(new AnonymousIndividual(R));
         Assert.assertEquals(expected, actual);
     }
+    
+    // TODO: add more tests cases here for the redundancy removal steps in LeadsTo
 }

@@ -41,13 +41,13 @@ import org.junit.Test;
  * @author İnanç Seylan
  */
 public class BitRepDataCompletionStrategyTest {
-    
+
     private static final List<String> PROJECTS = Arrays.asList("test");
 
     private DBLayout layout;
-    
+
     private MemToBulkFileWriter writer;
-    
+
     private File dataFile;
 
     private void loadAndCompleteData() {
@@ -60,7 +60,7 @@ public class BitRepDataCompletionStrategyTest {
         layout = new DBLayout(true);
         layout.initialize();
         layout.createProject(PROJECTS);
-        
+
         dataFile = File.createTempFile("test", "combo");
         dataFile.deleteOnExit();
         writer = new MemToBulkFileWriter(dataFile);
@@ -521,13 +521,9 @@ public class BitRepDataCompletionStrategyTest {
         // generating role completion
         expectedRA.add(new ObjectRoleAssertion(R, "a", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(S, "c_R0", "c_S1"));
-        expectedRA.add(new ObjectRoleAssertion(U, "c_U-0", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(R, "c_S1", "c_R1"));
-        expectedRA.add(new ObjectRoleAssertion(U, "c_S1", "c_U1"));
         expectedRA.add(new ObjectRoleAssertion(S, "c_R1", "c_S0"));
-        expectedRA.add(new ObjectRoleAssertion(U, "c_U-1", "c_R1"));
         expectedRA.add(new ObjectRoleAssertion(R, "c_S0", "c_R0"));
-        expectedRA.add(new ObjectRoleAssertion(U, "c_S0", "c_U0"));
         // role inclusion completion
         expectedRA.add(new ObjectRoleAssertion(U, "a", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(U, "c_S1", "c_R1"));
@@ -591,10 +587,6 @@ public class BitRepDataCompletionStrategyTest {
         expected.add(new ObjectRoleAssertion(R, "a", "c_R0"));
         expected.add(new ObjectRoleAssertion(T, "c_R0", "c_T0"));
         expected.add(new ObjectRoleAssertion(P, "c_T0", "c_P0"));
-        expected.add(new ObjectRoleAssertion(U, "c_R0", "c_U0"));
-        expected.add(new ObjectRoleAssertion(P, "c_U0", "c_P0"));
-        expected.add(new ObjectRoleAssertion(S, "c_S-0", "c_R0"));
-        expected.add(new ObjectRoleAssertion(U, "c_U-0", "c_T0"));
         // role inclusion completion        
         expected.add(new ObjectRoleAssertion(S, "a", "c_R0"));
         expected.add(new ObjectRoleAssertion(U, "c_R0", "c_T0"));
@@ -640,13 +632,11 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA.add(new ConceptAssertion(A, "a"));
         expectedCA.add(new ConceptAssertion(B, "a"));
         expectedCA.add(new ConceptAssertion(C, "a"));
-        expectedCA.add(new ConceptAssertion(B, "c_S-0"));
         Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
 
         Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
         expectedRA.add(new ObjectRoleAssertion(R, "a", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(S, "a", "c_R0"));
-        expectedRA.add(new ObjectRoleAssertion(S, "c_S-0", "c_R0"));
         Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
     }
 
@@ -681,18 +671,17 @@ public class BitRepDataCompletionStrategyTest {
         Assert.assertEquals(CollectionUtils.newHashSet(new RoleInclusion(newRole, R),
                 new RoleInclusion(newRole.copy().toggleInverse(), R.copy().toggleInverse())),
                 materializer.getRoleInclusions());
-        
+
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
-        
-        Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(R, "a", anonIndv.toString()), 
-                new ObjectRoleAssertion(R, "c_R-0", anonIndv.toString())),
+
+        Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(R, "a", anonIndv.toString())),
                 materializer.getRoleAssertions());
-        
-        Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(A, "a"), 
+
+        Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(A, "a"),
                 new ConceptAssertion(B, anonIndv.toString())),
                 materializer.getConceptAssertions());
     }
-    
+
     @Test
     public void testCompleteDataRNQRN() throws IOException, InterruptedException {
         ConceptName A = new ConceptName("A");
@@ -715,7 +704,7 @@ public class BitRepDataCompletionStrategyTest {
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "a", anonIndv.toString())));
         Assert.assertTrue(materializer.getConceptAssertions().contains(new ConceptAssertion(A, anonIndv.toString())));
     }
-    
+
     @Test
     public void testCompleteDataInvQRN() throws IOException, InterruptedException {
         ConceptName A = new ConceptName("A");
@@ -724,7 +713,7 @@ public class BitRepDataCompletionStrategyTest {
         Role invS = new Role("S", true);
         RoleRestriction existsInvS = new RoleRestriction(RoleRestriction.Constructor.SOME, invS);
         RoleRestriction existsRA = new RoleRestriction(RoleRestriction.Constructor.SOME, R, A);
-        
+
         writer.add(new GCI(existsInvS, existsRA));
         writer.add(new ObjectRoleAssertion(S, "a", "b"));
         writer.close();
@@ -739,7 +728,7 @@ public class BitRepDataCompletionStrategyTest {
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "b", anonIndv.toString())));
         Assert.assertTrue(materializer.getConceptAssertions().contains(new ConceptAssertion(A, anonIndv.toString())));
     }
-    
+
     @Test
     public void testCompleteDataCNQInv() throws IOException, InterruptedException {
         ConceptName A = new ConceptName("A");
@@ -762,7 +751,7 @@ public class BitRepDataCompletionStrategyTest {
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "a", anonIndv.toString())));
         Assert.assertTrue(materializer.getConceptAssertions().contains(new ConceptAssertion(B, anonIndv.toString())));
     }
-    
+
     @Test
     public void testCompleteDataRNQInv() throws IOException, InterruptedException {
         ConceptName A = new ConceptName("A");
@@ -786,7 +775,7 @@ public class BitRepDataCompletionStrategyTest {
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "a", anonIndv.toString())));
         Assert.assertTrue(materializer.getConceptAssertions().contains(new ConceptAssertion(A, anonIndv.toString())));
     }
-    
+
     @Test
     public void testCompleteDataInvQInv() throws IOException, InterruptedException {
         ConceptName A = new ConceptName("A");
@@ -796,7 +785,7 @@ public class BitRepDataCompletionStrategyTest {
         Role invS = new Role("S", true);
         RoleRestriction existsInvS = new RoleRestriction(RoleRestriction.Constructor.SOME, invS);
         RoleRestriction existsInvRA = new RoleRestriction(RoleRestriction.Constructor.SOME, invR, A);
-        
+
         writer.add(new GCI(existsInvS, existsInvRA));
         writer.add(new ObjectRoleAssertion(S, "a", "b"));
         writer.close();
@@ -807,29 +796,370 @@ public class BitRepDataCompletionStrategyTest {
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         Set<ObjectRoleAssertion> assertions = materializer.getRoleAssertions();
+        System.out.println(assertions); // TODO turn this into an equality check for the expected
         Assert.assertTrue(assertions.contains(new ObjectRoleAssertion(R, anonIndv.toString(), "b")));
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "b", anonIndv.toString())));
         Assert.assertTrue(materializer.getConceptAssertions().contains(new ConceptAssertion(A, anonIndv.toString())));
     }
-    
+
     @Test
-    public void testCompleteRedundantCNForQualified() throws IOException, InterruptedException {
+    public void testCompleteRedundantCNForQualifiedDueToABox() throws IOException, InterruptedException {
         Role R = new Role("R");
         ConceptName A = new ConceptName("A");
         ConceptName B = new ConceptName("B");
         ConceptName C = new ConceptName("C");
-        
+
         writer.add(new GCI(A, B));
         writer.add(new GCI(C, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
         writer.add(new ObjectRoleAssertion(R, "a", "b"));
         writer.add(new ConceptAssertion(C, "a"));
         writer.add(new ConceptAssertion(A, "b"));
         writer.close();
-        
+
         loadAndCompleteData();
-        
+
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(R, "a", "b")), materializer.getRoleAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(A, "b"), new ConceptAssertion(B, "b"), new ConceptAssertion(C, "a")), materializer.getConceptAssertions());
+    }
+
+    @Test
+    public void testCompleteRedundancySubRole() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, invR)));
+        writer.add(new RoleInclusion(invR, S));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "c_R-0", "a"));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", "c_R-0"));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+    }
+
+    @Test
+    public void testCompleteRedundancyEqRole() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        Role invS = new Role("S", true);
+        ConceptName A = new ConceptName("A");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R)));
+        writer.add(new RoleInclusion(R, invS));
+        writer.add(new RoleInclusion(invS, R));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", "c_R0"));
+        expectedRA.add(new ObjectRoleAssertion(S, "c_R0", "a"));
+
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        // we will not introduce 2 different subroles of R in this case
+        // but we might have if we read the ontology from an OWL file
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy2() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, C)));
+        writer.add(new GCI(B, C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy3() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, C)));
+        writer.add(new GCI(B, C));
+        writer.add(new GCI(C, B));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // TODO: fix the following assumption
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy4() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, B)));
+        writer.add(new RoleInclusion(R, S));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy5() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, B)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new RoleInclusion(S, R));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // TODO: fix the following assumption
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy6() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new GCI(B, C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy7() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new GCI(B, C));
+        writer.add(new GCI(C, B));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy8() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new RoleInclusion(S, R));
+        writer.add(new GCI(B, C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+    
+    @Test
+    public void testCompleteQRRedundancy9() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new RoleInclusion(S, R));
+        writer.add(new GCI(B, C));
+        writer.add(new GCI(C, B));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        
+        // TODO: fix the following assumption
+        // there are two new roles: the one that is qualified with B happens to be the second one
+        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
+        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
     }
 }
