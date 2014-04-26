@@ -32,6 +32,7 @@ import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -910,19 +911,34 @@ public class BitRepDataCompletionStrategyTest {
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString())); 
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+        
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
     
     @Test
@@ -942,20 +958,34 @@ public class BitRepDataCompletionStrategyTest {
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         
-        // TODO: fix the following assumption
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
     
     @Test
@@ -1006,20 +1036,34 @@ public class BitRepDataCompletionStrategyTest {
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         
-        // TODO: fix the following assumption
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+        
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
     
     @Test
@@ -1040,20 +1084,36 @@ public class BitRepDataCompletionStrategyTest {
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions alternative 1
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions alternative 2
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+        
+        // concept assertions alternative 1
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions alternative 2
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
     
     @Test
@@ -1075,20 +1135,36 @@ public class BitRepDataCompletionStrategyTest {
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+        
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
     
     @Test
@@ -1110,20 +1186,36 @@ public class BitRepDataCompletionStrategyTest {
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
         
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+        
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
     
     @Test
@@ -1145,21 +1237,35 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
         DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
-        // TODO: fix the following assumption
-        // there are two new roles: the one that is qualified with B happens to be the second one
-        Role newRole = new Role(QualifiedExistentialEncoder.URI + "1");
-        AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
 
-        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
-        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
-        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv.toString()));
-        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
         
-        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
-        expectedCA.add(new ConceptAssertion(A, "a"));
-        expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
-        expectedCA.add(new ConceptAssertion(C, anonIndv.toString()));
-        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+        Assert.assertThat(materializer.getRoleAssertions(), 
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+        
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+        
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
 }
