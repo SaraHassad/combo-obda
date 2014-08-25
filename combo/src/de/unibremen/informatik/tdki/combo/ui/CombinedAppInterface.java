@@ -19,20 +19,22 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import de.unibremen.informatik.tdki.combo.data.DB2Interface;
+import de.unibremen.informatik.tdki.combo.data.DBConfig;
+import de.unibremen.informatik.tdki.combo.data.DBConnPool;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
-import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
 import de.unibremen.informatik.tdki.combo.data.RowCallbackHandler;
 import de.unibremen.informatik.tdki.combo.rewriting.FilterRewriterDB2;
 import de.unibremen.informatik.tdki.combo.syntax.query.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.dbutils.QueryRunner;
 
 /**
  *
@@ -151,8 +153,6 @@ class CommandLoad {
     private String file;
     @Parameter(names = "--project", description = "Name of the project")
     private String project;
-    //@Parameter(names = "--exception", description = "Name of the project to log exceptions, e.g., violated integrity constraints")
-    //private String exception = "";
 
     public String getFile() {
         return file;
@@ -169,13 +169,6 @@ class CommandLoad {
     public void setProject(String project) {
         this.project = project;
     }
-//    public String getException() {
-//        return exception;
-//    }
-//
-//    public void setException(String exception) {
-//        this.exception = exception;
-//    }
 }
 
 /**
@@ -331,11 +324,13 @@ class CommandRunStats {
  */
 public class CombinedAppInterface {
 
-    private static JdbcTemplate jdbcTemplate;
+    private static Connection connection;
 
     public static void main(String[] args) {
-        jdbcTemplate = DB2Interface.getJDBCTemplate();
-        DBLayout layout = new DBLayout(false);
+        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        connection = pool.getConnection();
+        
+        DBLayout layout = new DBLayout(false, connection);
 
         JCommander jc = new JCommander();
         CommandComplete complete = new CommandComplete();
@@ -367,29 +362,48 @@ public class CombinedAppInterface {
             jc.parse(args);
             String command = jc.getParsedCommand();
             if (command.equals("complete")) {
-                layout.completeData(complete.getProjects());
+                for (String name : complete.getProjects()) {
+                    layout.completeData(name);
+                }
             } else if (command.equals("create")) {
-                layout.createProject(create.getProjects());
+                for (String name : create.getProjects()) {
+                    if (layout.createProject(name)) {
+                        System.out.println(name + " already exists; not creating.");
+                    }
+                }
             } else if (command.equals("delete")) {
-                layout.dropProject(delete.getProjects());
+                for (String name : delete.getProjects()) {
+                    layout.dropProject(name);
+                }
             } else if (command.equals("dropf")) {
                 dropFilter();
             } else if (command.equals("export")) {
-                layout.exportProject(export.getProject(), new File(export.getFile()));
+                boolean projectExists = layout.exportProject(export.getProject(), new File(export.getFile()));
+                if (!projectExists) {
+                    System.err.println("Project " + export.getProject() + " does not exist.");
+                }
             } else if (command.equals("help")) {
                 jc.usage();
             } else if (command.equals("init")) {
                 layout.initialize();
             } else if (command.equals("list")) {
-                layout.listProjects();
+                List<String> projects = layout.getProjects();
+                for (String p : projects) {
+                    System.out.println(p);
+                }
             } else if (command.equals("load")) {
-                layout.loadProject(new File(load.getFile()), load.getProject());
+                boolean projectExists = layout.loadProject(new File(load.getFile()), load.getProject());
+                if (!projectExists) {
+                    System.err.println("Project " + load.getProject() + " does not exist.");
+                }
             } else if (command.equals("rwd")) {
                 generateDatalog(rwDatalog);
             } else if (command.equals("rwf")) {
                 generateFilter(rwFilter);
             } else if (command.equals("runstats")) {
-                layout.updateStatistics(runStats.getProjects());
+                for (String name : runStats.getProjects()) {
+                    layout.updateStatistics(name);
+                }
             }
         } catch (ParameterException e) {
             System.err.println(e.getMessage());
@@ -402,7 +416,7 @@ public class CombinedAppInterface {
             NRDatalogProgram program = new QueryParser(rw.getUri()).parseDatalogFile(new File(rw.getFilename()));
             assert (program.getRules().size() == 1);
             ConjunctiveQuery q = program.getRules().get(0);
-            FilterRewriterDB2 qCompiler = new FilterRewriterDB2(rw.getProject());
+            FilterRewriterDB2 qCompiler = new FilterRewriterDB2(rw.getProject(), connection);
             String sql = qCompiler.filter(q, rw.isNames(), rw.isCount(), rw.isAvo()).toString();
             System.out.println(sql);
         } catch (FileNotFoundException ex) {
@@ -418,7 +432,7 @@ public class CombinedAppInterface {
             program.setHeadPredicate("Q");
             NRDatalogToPEQConverter converter = new NRDatalogToPEQConverter();
             Query q = converter.convert(program);
-            FilterRewriterDB2 qCompiler = new FilterRewriterDB2(rw.getProject());
+            FilterRewriterDB2 qCompiler = new FilterRewriterDB2(rw.getProject(), connection);
             String sql = qCompiler.rewrite(q, rw.isNames(), rw.isCount(), true).toString();
             System.out.println(sql);
         } catch (FileNotFoundException ex) {
@@ -434,22 +448,28 @@ public class CombinedAppInterface {
     }
 
     private static void dropFilter(String namePattern) {
-        jdbcTemplate.query("SELECT funcname, parm_count FROM Syscat.Functions WHERE funcname LIKE '" + namePattern + "%'", new RowCallbackHandler() {
-
-            @Override
-            public void processRow(ResultSet rs) throws SQLException {
-                StringBuilder query = new StringBuilder();
-                query.append("DROP FUNCTION ").append(rs.getString(1)).append("(");
-                int noOfParams = rs.getInt(2);
-                for (int i = 0; i < noOfParams; i++) {
-                    query.append("INTEGER");
-                    if (i != noOfParams - 1) {
-                        query.append(",");
+        // TODO: add a stored procedure for filter dropping
+        try {
+            final QueryRunner qRunner = new QueryRunner();
+            qRunner.query("SELECT funcname, parm_count FROM Syscat.Functions WHERE funcname LIKE '" + namePattern + "%'", new RowCallbackHandler() {
+                
+                @Override
+                public void processRow(ResultSet rs) throws SQLException {
+                    StringBuilder query = new StringBuilder();
+                    query.append("DROP FUNCTION ").append(rs.getString(1)).append("(");
+                    int noOfParams = rs.getInt(2);
+                    for (int i = 0; i < noOfParams; i++) {
+                        query.append("INTEGER");
+                        if (i != noOfParams - 1) {
+                            query.append(",");
+                        }
                     }
+                    query.append(")");
+                    qRunner.update(connection, query.toString());
                 }
-                query.append(")");
-                jdbcTemplate.execute(query.toString());
-            }
-        });
+            });
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }

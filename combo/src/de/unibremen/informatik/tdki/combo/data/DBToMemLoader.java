@@ -23,12 +23,14 @@ import de.unibremen.informatik.tdki.combo.syntax.axiom.ObjectRoleAssertion;
 import de.unibremen.informatik.tdki.combo.syntax.axiom.RoleInclusion;
 import de.unibremen.informatik.tdki.combo.syntax.concept.Concept;
 import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.dbutils.QueryRunner;
 
 /**
  *
@@ -41,21 +43,29 @@ public class DBToMemLoader {
     private Set<ObjectRoleAssertion> roleAssertions = new HashSet<ObjectRoleAssertion>();
     private TBox tbox = new MemTBox();
     private String project;
+    private Connection connection;
+    private QueryRunner qRunner;
 
-    public DBToMemLoader(String project) {
+    public DBToMemLoader(String project, Connection connection) {
         this.project = project;
+        this.connection = connection;
+        qRunner = new QueryRunner();
         materialize();
     }
 
     final public void materialize() {
-        EncodingManagerDB2 manager = materializeSymbols();
-        conceptAssertions.clear();
-        roleAssertions.clear();
-        tbox = new MemTBox();
-        materializeConceptInclusions(manager);
-        materializeRoleInclusions(manager);
-        materializeConceptAssertions(manager);
-        materializeRoleAssertions(manager);
+        try {
+            EncodingManagerDB2 manager = materializeSymbols();
+            conceptAssertions.clear();
+            roleAssertions.clear();
+            tbox = new MemTBox();
+            materializeConceptInclusions(manager);
+            materializeRoleInclusions(manager);
+            materializeConceptAssertions(manager);
+            materializeRoleAssertions(manager);
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public Set<ConceptAssertion> getConceptAssertions() {
@@ -74,9 +84,9 @@ public class DBToMemLoader {
         return tbox.getConceptInclusions();
     }
 
-    private EncodingManagerDB2 materializeSymbols() {
+    private EncodingManagerDB2 materializeSymbols() throws SQLException {
         final Map<String, Integer> map = new HashMap<String, Integer>();
-        DB2Interface.getJDBCTemplate().query("SELECT name, id FROM " + DBLayout.getTableSymbols(project), new RowCallbackHandler() {
+        qRunner.query(connection, "SELECT name, id FROM " + DBLayout.getTableSymbols(project), new RowCallbackHandler() {
 
             @Override
             public void processRow(ResultSet rs) throws SQLException {
@@ -89,9 +99,9 @@ public class DBToMemLoader {
         return result;
     }
 
-    private void materializeConceptAssertions(final EncodingManagerDB2 manager) {
+    private void materializeConceptAssertions(final EncodingManagerDB2 manager) throws SQLException {
         String selectConceptAssertions = "SELECT concept, individual FROM " + DBLayout.getTableConceptAssertions(project);
-        DB2Interface.getJDBCTemplate().query(selectConceptAssertions, new RowCallbackHandler() {
+        qRunner.query(connection, selectConceptAssertions, new RowCallbackHandler() {
 
             @Override
             public void processRow(ResultSet rs) throws SQLException {
@@ -103,9 +113,9 @@ public class DBToMemLoader {
         });
     }
 
-    private void materializeRoleAssertions(final EncodingManagerDB2 manager) {
+    private void materializeRoleAssertions(final EncodingManagerDB2 manager) throws SQLException {
         String selectRoleAssertions = "SELECT role, lhs, rhs FROM " + DBLayout.getTableRoleAssertions(project);
-        DB2Interface.getJDBCTemplate().query(selectRoleAssertions, new RowCallbackHandler() {
+        qRunner.query(connection, selectRoleAssertions, new RowCallbackHandler() {
 
             @Override
             public void processRow(ResultSet rs) throws SQLException {
@@ -138,9 +148,9 @@ public class DBToMemLoader {
         }
     }
 
-    private void materializeRoleInclusions(final EncodingManagerDB2 manager) {
+    private void materializeRoleInclusions(final EncodingManagerDB2 manager) throws SQLException {
         String selectMaterializeInclusionAxioms = "SELECT lhs, rhs FROM " + DBLayout.getTableRBox(project);
-        DB2Interface.getJDBCTemplate().query(selectMaterializeInclusionAxioms, new RowCallbackHandler() {
+        qRunner.query(connection, selectMaterializeInclusionAxioms, new RowCallbackHandler() {
 
             @Override
             public void processRow(ResultSet rs) throws SQLException {
@@ -151,9 +161,9 @@ public class DBToMemLoader {
         });
     }
 
-    private void materializeConceptInclusions(final EncodingManagerDB2 manager) {
+    private void materializeConceptInclusions(final EncodingManagerDB2 manager) throws SQLException {
         String selectMaterializeInclusionAxioms = "SELECT lhs, rhs FROM " + DBLayout.getTableTBox(project);
-        DB2Interface.getJDBCTemplate().query(selectMaterializeInclusionAxioms, new RowCallbackHandler() {
+        qRunner.query(connection, selectMaterializeInclusionAxioms, new RowCallbackHandler() {
 
             @Override
             public void processRow(ResultSet rs) throws SQLException {

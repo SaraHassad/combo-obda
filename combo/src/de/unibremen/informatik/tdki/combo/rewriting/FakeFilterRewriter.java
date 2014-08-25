@@ -16,14 +16,13 @@
 package de.unibremen.informatik.tdki.combo.rewriting;
 
 import de.unibremen.informatik.tdki.combo.syntax.sql.SFWQuery;
-import de.unibremen.informatik.tdki.combo.data.DB2Interface;
-import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
 import java.io.*;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import de.unibremen.informatik.tdki.combo.syntax.query.ConjunctiveQuery;
 import de.unibremen.informatik.tdki.combo.syntax.sql.WhereComposite;
+import java.sql.Connection;
+import java.sql.SQLException;
+import org.apache.commons.dbutils.QueryRunner;
 
 /**
  *
@@ -34,12 +33,12 @@ public class FakeFilterRewriter {
     private ConjunctiveQuery query;
     private SFWQuery sql;
     private WhereComposite where;
-    private JdbcTemplate jdbcTemplate = DB2Interface.getJDBCTemplate();
     private final static String outputDir = "/tmp/";
     private final static String sourceDir = "udf/";
     private boolean bitopEnabled;
     private long libNo;
     private String db2IncludeDir;
+    private Connection connection;
 
     public boolean isBitopEnabled() {
         return bitopEnabled;
@@ -49,12 +48,14 @@ public class FakeFilterRewriter {
         this.bitopEnabled = bitopEnabled;
     }
 
-    public FakeFilterRewriter() {
+    public FakeFilterRewriter(Connection connection) {
+        this.connection = connection;
         bitopEnabled = true;
         setDB2IncludeDir();
     }
 
     public FakeFilterRewriter(boolean bitopEnabled) {
+        this.connection = connection;
         this.bitopEnabled = bitopEnabled;
         setDB2IncludeDir();
     }
@@ -67,14 +68,16 @@ public class FakeFilterRewriter {
             appProps.load(fs);
             db2IncludeDir = appProps.getProperty("db2headerdir");
         } catch (FileNotFoundException ex) {
-            Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         } catch (IOException ex) {
-            Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         } finally {
             try {
-                fs.close();
+                if (fs != null) {
+                    fs.close();
+                }
             } catch (IOException ex) {
-                Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
+                throw new RuntimeException(ex);
             }
         }
     }
@@ -87,9 +90,9 @@ public class FakeFilterRewriter {
             compileCode();
             createFilterInDB2();
         } catch (InterruptedException ex) {
-            Logger.getLogger(FilterRewriterDB2.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         } catch (IOException ex) {
-            Logger.getLogger(FilterRewriterDB2.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         }
         return sql;
     }
@@ -117,7 +120,12 @@ public class FakeFilterRewriter {
             builder.append("RETURNS NULL ON NULL INPUT\n");
             builder.append("NO EXTERNAL ACTION\n");
             builder.append("EXTERNAL NAME \'").append(outputDir).append("libDB2FakeFilter").append(libNo).append(".dylib!fake_filter").append(libNo).append("\'");
-            jdbcTemplate.execute(builder.toString());
+            QueryRunner qRunner = new QueryRunner();
+            try {
+                qRunner.update(connection, builder.toString());
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 

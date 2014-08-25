@@ -15,18 +15,16 @@
  */
 package de.unibremen.informatik.tdki.combo.rewriting;
 
-import de.unibremen.informatik.tdki.combo.data.DB2Interface;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
-import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
 import de.unibremen.informatik.tdki.combo.data.RowCallbackHandler;
 import de.unibremen.informatik.tdki.combo.syntax.query.*;
 import de.unibremen.informatik.tdki.combo.syntax.sql.*;
 import java.io.*;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.apache.commons.dbutils.QueryRunner;
 
 /**
  *
@@ -35,38 +33,41 @@ import java.util.logging.Logger;
 public class FilterRewriterDB2 {
 
     private ConjunctiveQuery query;
-    private JdbcTemplate jdbcTemplate;
     private String compileOutputDir;
     private long libNo;
     private List<String> variables;
     private Map<String, Integer> symbolIdMap;
     private String project;
+    private Connection connection;
+    private QueryRunner qRunner;
 
-    public FilterRewriterDB2(String project) {
-        this.jdbcTemplate = DB2Interface.getJDBCTemplate();
-        initParameters();
+    public FilterRewriterDB2(String project, Connection connection) {
+        this.connection = connection;
+        qRunner = new QueryRunner();
+        // TODO: remove this at some point
+        //initParameters();
         this.project = project;
     }
 
-    private void initParameters() {
-        FileInputStream fs = null;
-        try {
-            Properties appProps = new Properties();
-            fs = new FileInputStream("config/app.properties");
-            appProps.load(fs);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                fs.close();
-            } catch (IOException ex) {
-                Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-    }
-
+// TODO: the following code seems to be unnecessary and commented it out. If no problems, remove it
+//    private void initParameters() {
+//        FileInputStream fs = null;
+//        try {
+//            Properties appProps = new Properties();
+//            fs = new FileInputStream("config/app.properties");
+//            appProps.load(fs);
+//        } catch (FileNotFoundException ex) {
+//            Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
+//        } catch (IOException ex) {
+//            Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
+//        } finally {
+//            try {
+//                fs.close();
+//            } catch (IOException ex) {
+//                Logger.getLogger(FakeFilterRewriter.class.getName()).log(Level.SEVERE, null, ex);
+//            }
+//        }
+//    }
     /**
      * gets the ids of the symbols used in the query from the database
      */
@@ -114,13 +115,17 @@ public class FilterRewriterDB2 {
         SFWQuery selectDistinct = SFWQuery.createDistinct(select);
 
         symbolIdMap = new HashMap<String, Integer>();
-        jdbcTemplate.query(selectDistinct.toString(), new RowCallbackHandler() {
+        try {
+            qRunner.query(connection, selectDistinct.toString(), new RowCallbackHandler() {
 
-            @Override
-            public void processRow(ResultSet rs) throws SQLException {
-                symbolIdMap.put(rs.getString(1), rs.getInt(2));
-            }
-        });
+                @Override
+                public void processRow(ResultSet rs) throws SQLException {
+                    symbolIdMap.put(rs.getString(1), rs.getInt(2));
+                }
+            });
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     private void appendComparisonForAnswerVariables(ConjunctiveQuery q, WhereComposite where) {
@@ -177,6 +182,8 @@ public class FilterRewriterDB2 {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
         return sql;
     }
@@ -196,7 +203,7 @@ public class FilterRewriterDB2 {
         return variables.indexOf(v);
     }
 
-    private void createFilterInDB2(int varcount) {
+    private void createFilterInDB2(int varcount) throws SQLException {
         StringBuilder builder = new StringBuilder();
         builder.append("CREATE FUNCTION ");
         builder.append("is_real_tuple").append(libNo).append("(");
@@ -217,7 +224,7 @@ public class FilterRewriterDB2 {
         builder.append("RETURNS NULL ON NULL INPUT\n");
         builder.append("NO EXTERNAL ACTION\n");
         builder.append("EXTERNAL NAME \'").append(compileOutputDir).append("libDB2Filter").append(".dylib!is_real_tuple").append(libNo).append("\'");
-        jdbcTemplate.execute(builder.toString());
+        qRunner.update(connection, builder.toString());
     }
 
     private void appendFilterCondition(ConjunctiveQuery q, WhereComposite where) {
@@ -275,7 +282,7 @@ public class FilterRewriterDB2 {
         }
     }
 
-    private void generateGlobalDataStructuresForFilter() throws IOException {
+    private void generateGlobalDataStructuresForFilter() throws IOException, SQLException {
         final PrintWriter headerFile = new PrintWriter(new FileWriter(compileOutputDir + "globalvars.h"));
         try {
             headerFile.println("#ifndef GLOBALVARS_H");
@@ -318,7 +325,7 @@ public class FilterRewriterDB2 {
             // the \leadsto_R relation
             atoms.clear();
             headerFile.print("const set<RoleAtom> genRoles");
-            jdbcTemplate.query("SELECT DISTINCT role, lhs, rhs FROM " + DBLayout.getTableGenRoles(project), new RowCallbackHandler() {
+            qRunner.query(connection, "SELECT DISTINCT role, lhs, rhs FROM " + DBLayout.getTableGenRoles(project), new RowCallbackHandler() {
 
                 @Override
                 public void processRow(ResultSet rs) throws SQLException {
@@ -352,17 +359,16 @@ public class FilterRewriterDB2 {
     }
 
     private void compileCode() throws InterruptedException, IOException {
-        // TODO: The following might we a problem in non Unix platforms. 
+        // TODO: The following might be a problem in non Unix platforms. 
         // But already demanding GNU compilers and make is a problem.
         Process p = Runtime.getRuntime().exec("cp udf/Makefile udf/filter.h udf/filter.cpp " + compileOutputDir);
         printOutput(p);
         p.waitFor();
-        
+
         // The following only works in Java 7
         // Files.copy(new File("udf/Makefile").toPath(), new File(compileOutputDir, "Makefile").toPath());
         // Files.copy(new File("udf/filter.h").toPath(), new File(compileOutputDir, "filter.h").toPath());
         // Files.copy(new File("udf/filter.cpp").toPath(), new File(compileOutputDir, "filter.cpp").toPath());
-        
         p = Runtime.getRuntime().exec("make -C " + compileOutputDir + " filter");
         printOutput(p);
         p.waitFor();

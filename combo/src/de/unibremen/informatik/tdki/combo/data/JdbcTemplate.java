@@ -20,6 +20,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import org.apache.commons.dbutils.DbUtils;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 import org.apache.commons.dbutils.handlers.AbstractListHandler;
@@ -30,18 +31,16 @@ import org.apache.commons.dbutils.handlers.ScalarHandler;
  * @author İnanç Seylan
  */
 public class JdbcTemplate {
-
-    private Connection connection;
+    // TODO: change this
+    public Connection connection;
 
     private QueryRunner qRunner;
 
     public JdbcTemplate(String url, String user, String password) {
+        assert DbUtils.loadDriver("com.ibm.db2.jcc.DB2Driver");
         try {
-            Class.forName("com.ibm.db2.jcc.DB2Driver");
             connection = DriverManager.getConnection(url, user, password);
             qRunner = new QueryRunner();
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (SQLException ex) {
             throw new RuntimeException(ex);
         }
@@ -82,7 +81,11 @@ public class JdbcTemplate {
 
             });
         } catch (SQLException ex) {
-            throw new RuntimeException(ex);
+            if (ex.getErrorCode() == -204) {
+                throw new DBObjectDoesNotExistException(ex);
+            } else {
+                throw new RuntimeException(ex);
+            }
         }
     }
 

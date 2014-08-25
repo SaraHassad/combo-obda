@@ -15,6 +15,8 @@
  */
 package reasoning;
 
+import de.unibremen.informatik.tdki.combo.data.DBConfig;
+import de.unibremen.informatik.tdki.combo.data.DBConnPool;
 import junit.framework.Assert;
 import org.junit.Test;
 import de.unibremen.informatik.tdki.combo.data.EncodingManagerDB2;
@@ -24,6 +26,10 @@ import de.unibremen.informatik.tdki.combo.syntax.Role;
 import de.unibremen.informatik.tdki.combo.syntax.concept.Concept;
 import de.unibremen.informatik.tdki.combo.syntax.concept.ConceptName;
 import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
+import java.sql.Connection;
+import org.apache.commons.dbutils.DbUtils;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 
 /**
  *
@@ -31,9 +37,22 @@ import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
  */
 public class EncodingManagerDB2Test {
     
+    private static Connection connection;
+
+    @BeforeClass
+    public static void setUpClass() {
+        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        connection = pool.getConnection();
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        DbUtils.closeQuietly(connection);
+    }
+    
     @Before
     public void setUp() {
-        new DBLayout(true).initialize();
+        new DBLayout(true, connection).initialize();
     }
 
     @Test

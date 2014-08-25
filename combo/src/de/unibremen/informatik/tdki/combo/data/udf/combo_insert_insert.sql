@@ -1,0 +1,10 @@
+CREATE OR REPLACE PROCEDURE combo_insert
+(
+  IN query CLOB(25000),
+  IN table VARCHAR(50)
+)
+LANGUAGE SQL	 
+BEGIN
+  EXECUTE IMMEDIATE 'INSERT INTO ' || table || ' ' || query;
+END
+@

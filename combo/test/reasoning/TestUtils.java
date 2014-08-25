@@ -18,9 +18,10 @@ package reasoning;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import de.unibremen.informatik.tdki.combo.common.Tuple;
-import de.unibremen.informatik.tdki.combo.data.DB2Interface;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.ResultSetHandler;
 
 /**
@@ -29,23 +30,28 @@ import org.apache.commons.dbutils.ResultSetHandler;
  */
 public class TestUtils {
 
-    public static <E> Multiset<Tuple<E>> getTuples(String query) {
+    public static <E> Multiset<Tuple<E>> getTuples(Connection connection, String query) {
         final Multiset<Tuple<E>> result = HashMultiset.create();
-        DB2Interface.getJDBCTemplate().query(query, new ResultSetHandler() {
-
-            @Override
-            public Object handle(ResultSet rs) throws SQLException {
-                int columns = rs.getMetaData().getColumnCount();
-                while (rs.next()) {
-                    Tuple<E> t = new Tuple<E>();
-                    for (int i = 1; i <= columns; i++) {
-                        t.add((E) rs.getObject(i));
+        QueryRunner qRunner = new QueryRunner();
+        try {
+            qRunner.query(connection, query, new ResultSetHandler() {
+                
+                @Override
+                public Object handle(ResultSet rs) throws SQLException {
+                    int columns = rs.getMetaData().getColumnCount();
+                    while (rs.next()) {
+                        Tuple<E> t = new Tuple<E>();
+                        for (int i = 1; i <= columns; i++) {
+                            t.add((E) rs.getObject(i));
+                        }
+                        result.add(t);
                     }
-                    result.add(t);
+                    return null;
                 }
-                return null;
-            }
-        });
+            });
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
         return result;
     }
 }
