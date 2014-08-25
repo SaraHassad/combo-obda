@@ -16,6 +16,8 @@
 package reasoning;
 
 import de.unibremen.informatik.tdki.combo.common.CollectionUtils;
+import de.unibremen.informatik.tdki.combo.data.DBConfig;
+import de.unibremen.informatik.tdki.combo.data.DBConnPool;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
 import de.unibremen.informatik.tdki.combo.data.DBToMemLoader;
 import de.unibremen.informatik.tdki.combo.data.MemToBulkFileWriter;
@@ -28,13 +30,15 @@ import de.unibremen.informatik.tdki.combo.syntax.concept.ConceptName;
 import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import junit.framework.Assert;
+import org.apache.commons.dbutils.DbUtils;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -42,7 +46,7 @@ import org.junit.Test;
  * @author İnanç Seylan
  */
 public class MemLoadAndMaterializeTest {
-    private static final List<String> PROJECTS = Arrays.asList("test");
+    private static final String PROJECT = "test";
     
     private DBLayout layout;
     
@@ -50,11 +54,24 @@ public class MemLoadAndMaterializeTest {
     
     private MemToBulkFileWriter writer;
     
+    private static Connection connection;
+
+    @BeforeClass
+    public static void setUpClass() {
+        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        connection = pool.getConnection();
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        DbUtils.closeQuietly(connection);
+    }
+    
      @Before
     public void setUp() throws IOException, InterruptedException {
-        layout = new DBLayout(true);
+        layout = new DBLayout(true, connection);
         layout.initialize();
-        layout.createProject(PROJECTS);
+        layout.createProject(PROJECT);
 
         dataFile = File.createTempFile("test", "combo");
         dataFile.deleteOnExit();
@@ -62,12 +79,12 @@ public class MemLoadAndMaterializeTest {
     }
      
      private void loadData() {
-        layout.loadProject(dataFile, PROJECTS.get(0));
-        layout.completeData(PROJECTS);
+        layout.loadProject(dataFile, PROJECT);
+        layout.completeData(PROJECT);
     }
 
     @Test
-    public void testAddTBox() throws SQLException, IOException, InterruptedException {
+    public void testAddTBox() throws IOException, InterruptedException {
         final ConceptName A = new ConceptName("A");
         final RoleRestriction someT = new RoleRestriction(RoleRestriction.Constructor.SOME, new Role("T"));
         final RoleRestriction someInvT = new RoleRestriction(RoleRestriction.Constructor.SOME, new Role("T", true));
@@ -96,7 +113,7 @@ public class MemLoadAndMaterializeTest {
         expected.add(new GCI(someInvR, someT));
         expected.add(new GCI(someInvT, someR));
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(expected, materializer.getConceptInclusions());
     }
 
@@ -117,7 +134,7 @@ public class MemLoadAndMaterializeTest {
         expected.add(new GCI(existsInvR, B));
         expected.add(new GCI(A, B));
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(expected, materializer.getConceptInclusions());
     }
 
@@ -129,7 +146,7 @@ public class MemLoadAndMaterializeTest {
         
         loadData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
 
@@ -159,7 +176,7 @@ public class MemLoadAndMaterializeTest {
         expected.add(new RoleInclusion(R, T));
         expected.add(new RoleInclusion(invR, invT));
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Assert.assertEquals(expected, materializer.getRoleInclusions());
     }
@@ -175,7 +192,7 @@ public class MemLoadAndMaterializeTest {
         
         loadData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Assert.assertEquals(CollectionUtils.newHashSet(ASomeRInv), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("B"), "b")), materializer.getConceptAssertions());

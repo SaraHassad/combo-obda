@@ -19,9 +19,14 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.apache.commons.dbutils.DbUtils;
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.AbstractListHandler;
 
 /**
  *
@@ -31,7 +36,8 @@ public class DBLayout {
 
     private static final String PROJECTS = "Projects";
     private boolean useInsert;
-    private JdbcTemplate jdbcTemplate;
+    private Connection connection;
+    private QueryRunner qRunner;
     private static final String CONCEPT_ASSERTIONS = "ConceptAssertions";
     private static final String ROLE_ASSERTIONS = "RoleAssertions";
     private static final String CONCEPT_INCLUSIONS = "InclusionAxioms";
@@ -81,214 +87,177 @@ public class DBLayout {
         return getTable(project, QUALIFIED_EXISTENTIALS);
     }
 
-    private void initRBox(String project) {
-        String table = getTableRBox(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (lhs integer NOT NULL, rhs integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_ri_lhs_rhs ON " + table + " (lhs, rhs)");
-    }
-
-    private void initTBox(String project) {
-        String table = getTableTBox(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (lhs integer NOT NULL, rhs integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_ia_lhs_rhs ON " + table + " (lhs, rhs)");
-    }
-
-    private void initGeneratingRoles(String project) {
-        String table = getTableGenRoles(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (anonindv integer NOT NULL, role integer NOT NULL, lhs integer NOT NULL, rhs integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_genroles_anonindv ON " + table + " (anonindv)");
-    }
-
-    private void initGeneratingConcepts(String project) {
-        String table = getTableGenConcepts(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (concept integer NOT NULL, individual integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_genconcepts_individual ON " + table + " (individual)");
-    }
-
-    private void initConceptAssertions(String project) {
-        String table = getTableConceptAssertions(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (concept integer NOT NULL, individual integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_oca_concept_individual ON " + table + " (concept, individual)");
-    }
-
-    private void initRoleAssertions(String project) {
-        String table = getTableRoleAssertions(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (role integer NOT NULL, lhs integer NOT NULL, rhs integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_ora_role_lhs_rhs ON " + table + " (role, lhs, rhs)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_ora_role_rhs_lhs ON " + table + " (role, rhs, lhs)");
-    }
-
-    private void initSymbolsTable(String project) {
-        String table = getTableSymbols(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (name character varying(150) NOT NULL PRIMARY KEY, id integer NOT NULL)");
-        DB2Interface.getJDBCTemplate().execute("CREATE INDEX " + project + "_symbols_id_name ON " + table + " (id, name)");
-    }
-
-    private void initQualifiedExistentialsTable(String project) {
-        String table = getTableQualifiedExistentials(project);
-        DB2Interface.getJDBCTemplate().execute("CREATE TABLE " + table + " (newrole integer NOT NULL PRIMARY KEY, originalrole integer NOT NULL, conceptname integer NOT NULL)");
-    }
-
-    public DBLayout(boolean useInsert) {
+    public DBLayout(boolean useInsert, Connection connection) {
         this.useInsert = useInsert;
-        jdbcTemplate = DB2Interface.getJDBCTemplate();
+        this.connection = connection;
+        qRunner = new QueryRunner();
     }
 
-    public void createProject(List<String> projects) {
-        List<String> existing = getProjects();
-        for (String name : projects) {
-            if (existing.contains(name)) {
-                System.out.println(name + " already exists; not creating.");
-            } else {
-                createProject(name);
-            }
+    /**
+     *
+     * @param project
+     * @return true if the project already exists
+     */
+    public boolean createProject(String project) {
+        CallableStatement callableStatement = null;
+        boolean projectExists = false;
+        try {
+            callableStatement = connection.prepareCall("CALL combo_create_project('" + project + "',?)");
+            callableStatement.registerOutParameter(1, java.sql.Types.INTEGER);
+            callableStatement.executeUpdate();
+
+            projectExists = (callableStatement.getInt(1) != 0);
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            DbUtils.closeQuietly(callableStatement);
         }
+        return projectExists;
     }
 
     private boolean projectExists(String project) {
-        return getProjects().contains(project);
+        CallableStatement callableStatement = null;
+        boolean projectExists = false;
+        try {
+            callableStatement = connection.prepareCall("CALL combo_project_exists('" + project + "',?)");
+            callableStatement.registerOutParameter(1, java.sql.Types.INTEGER);
+            callableStatement.executeUpdate();
+
+            projectExists = (callableStatement.getInt(1) != 0);
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            DbUtils.closeQuietly(callableStatement);
+        }
+        return projectExists;
     }
 
-    public void loadProject(File bulkFile, String project) {
+    public boolean loadProject(File bulkFile, String project) {
         if (!projectExists(project)) {
-            System.err.println("Project " + project + " does not exist.");
-            return;
+            return false;
         }
         try {
             BulkFile f = new BulkFile(bulkFile.getCanonicalFile());
             f.open(BulkFile.Open.READ);
-            if (useInsert) {
-                DB2Interface.bulkImport(f.getConceptAssertions().getCanonicalPath(), getTableConceptAssertions(project));
-                DB2Interface.bulkImport(f.getRoleAssertions().getCanonicalPath(), getTableRoleAssertions(project));
-                DB2Interface.bulkImport(f.getSymbols().getCanonicalPath(), getTableSymbols(project));
-                DB2Interface.bulkImport(f.getGenRoles().getCanonicalPath(), getTableGenRoles(project));
-                DB2Interface.bulkImport(f.getGenConcepts().getCanonicalPath(), getTableGenConcepts(project));
-                DB2Interface.bulkImport(f.getQualifiedExistentials().getCanonicalPath(), getTableQualifiedExistentials(project));
-                DB2Interface.bulkImport(f.getInclusionAxioms().getCanonicalPath(), getTableTBox(project));
-                DB2Interface.bulkImport(f.getRoleInclusions().getCanonicalPath(), getTableRBox(project));
-            } else {
-                DB2Interface.bulkLoad(f.getConceptAssertions().getCanonicalPath(), getTableConceptAssertions(project));
-                DB2Interface.bulkLoad(f.getRoleAssertions().getCanonicalPath(), getTableRoleAssertions(project));
-                DB2Interface.bulkLoad(f.getSymbols().getCanonicalPath(), getTableSymbols(project), getTableSymbols(project) + "_EXCEPTION");
-                DB2Interface.bulkLoad(f.getGenRoles().getCanonicalPath(), getTableGenRoles(project));
-                DB2Interface.bulkLoad(f.getGenConcepts().getCanonicalPath(), getTableGenConcepts(project));
-                DB2Interface.bulkLoad(f.getQualifiedExistentials().getCanonicalPath(), getTableQualifiedExistentials(project));
-                DB2Interface.bulkLoad(f.getInclusionAxioms().getCanonicalPath(), getTableTBox(project));
-                DB2Interface.bulkLoad(f.getRoleInclusions().getCanonicalPath(), getTableRBox(project));
-            }
+            bulkLoadFromFile(f.getConceptAssertions().getCanonicalPath(), getTableConceptAssertions(project));
+            bulkLoadFromFile(f.getRoleAssertions().getCanonicalPath(), getTableRoleAssertions(project));
+            bulkLoadFromFile(f.getSymbols().getCanonicalPath(), getTableSymbols(project));
+            bulkLoadFromFile(f.getGenRoles().getCanonicalPath(), getTableGenRoles(project));
+            bulkLoadFromFile(f.getGenConcepts().getCanonicalPath(), getTableGenConcepts(project));
+            bulkLoadFromFile(f.getQualifiedExistentials().getCanonicalPath(), getTableQualifiedExistentials(project));
+            bulkLoadFromFile(f.getInclusionAxioms().getCanonicalPath(), getTableTBox(project));
+            bulkLoadFromFile(f.getRoleInclusions().getCanonicalPath(), getTableRBox(project));
             f.close();
         } catch (InterruptedException ex) {
-            Logger.getLogger(DBLayout.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         } catch (IOException ex) {
-            Logger.getLogger(DBLayout.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         }
+        return true;
     }
 
-    public void exportProject(String project, File bulkFile) {
+    public boolean exportProject(String project, File bulkFile) {
         if (!projectExists(project)) {
-            System.err.println("Project " + project + " does not exist.");
-            return;
+            return false;
         }
         try {
             BulkFile f = new BulkFile(bulkFile.getCanonicalFile());
             f.open(BulkFile.Open.COMPRESS);
-            DB2Interface.bulkExport(f.getConceptAssertions().getCanonicalPath(), getTableConceptAssertions(project));
-            DB2Interface.bulkExport(f.getRoleAssertions().getCanonicalPath(), getTableRoleAssertions(project));
-            DB2Interface.bulkExport(f.getSymbols().getCanonicalPath(), getTableSymbols(project));
-            DB2Interface.bulkExport(f.getGenRoles().getCanonicalPath(), getTableGenRoles(project));
-            DB2Interface.bulkExport(f.getGenConcepts().getCanonicalPath(), getTableGenConcepts(project));
-            DB2Interface.bulkExport(f.getQualifiedExistentials().getCanonicalPath(), getTableQualifiedExistentials(project));
-            DB2Interface.bulkExport(f.getInclusionAxioms().getCanonicalPath(), getTableTBox(project));
-            DB2Interface.bulkExport(f.getRoleInclusions().getCanonicalPath(), getTableRBox(project));
+            bulkExportToFile(f.getConceptAssertions().getCanonicalPath(), getTableConceptAssertions(project));
+            bulkExportToFile(f.getRoleAssertions().getCanonicalPath(), getTableRoleAssertions(project));
+            bulkExportToFile(f.getSymbols().getCanonicalPath(), getTableSymbols(project));
+            bulkExportToFile(f.getGenRoles().getCanonicalPath(), getTableGenRoles(project));
+            bulkExportToFile(f.getGenConcepts().getCanonicalPath(), getTableGenConcepts(project));
+            bulkExportToFile(f.getQualifiedExistentials().getCanonicalPath(), getTableQualifiedExistentials(project));
+            bulkExportToFile(f.getInclusionAxioms().getCanonicalPath(), getTableTBox(project));
+            bulkExportToFile(f.getRoleInclusions().getCanonicalPath(), getTableRBox(project));
             f.close();
         } catch (InterruptedException ex) {
-            Logger.getLogger(DBLayout.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
         } catch (IOException ex) {
-            Logger.getLogger(DBLayout.class.getName()).log(Level.SEVERE, null, ex);
+            throw new RuntimeException(ex);
+        }
+        return true;
+    }
+
+    public void dropProject(String project) {
+        try {
+            qRunner.update(connection, "CALL combo_drop_project('" + project + "')");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
-    private void createProject(String project) {
-        jdbcTemplate.update("INSERT INTO Projects VALUES ('" + project + "')");
-        initRBox(project);
-        initTBox(project);
-        initGeneratingRoles(project);
-        initGeneratingConcepts(project);
-        initConceptAssertions(project);
-        initRoleAssertions(project);
-        initSymbolsTable(project);
-        initQualifiedExistentialsTable(project);
-    }
-
-    public void dropProject(List<String> projects) {
-        for (String name : projects) {
-            dropProject(name);
+    public List<String> getProjects() {
+        try {
+            return qRunner.query(connection, "SELECT * FROM " + PROJECTS, new AbstractListHandler<String>() {
+                @Override
+                protected String handleRow(ResultSet rs) throws SQLException {
+                    return rs.getString(1);
+                }
+            });
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
-    private void dropProject(String project) {
-        jdbcTemplate.update("DELETE FROM Projects WHERE name='" + project + "'");
-
-        DB2Interface.safeDropTable(getTableConceptAssertions(project));
-        DB2Interface.safeDropTable(getTableGenConcepts(project));
-        DB2Interface.safeDropTable(getTableGenRoles(project));
-        DB2Interface.safeDropTable(getTableQualifiedExistentials(project));
-        DB2Interface.safeDropTable(getTableRBox(project));
-        DB2Interface.safeDropTable(getTableRoleAssertions(project));
-        DB2Interface.safeDropTable(getTableSymbols(project));
-        DB2Interface.safeDropTable(getTableSymbolsException(project));
-        DB2Interface.safeDropTable(getTableTBox(project));
-    }
-
-    private List<String> getProjects() {
-        return jdbcTemplate.queryForList("SELECT * FROM " + PROJECTS, String.class);
-    }
-
-    public void listProjects() {
-        List<String> projects = getProjects();
-        for (String p : projects) {
-            System.out.println(p);
-        }
-    }
-
-    public void completeData(List<String> projects) {
-        for (String p : projects) {
-            jdbcTemplate.execute("CALL complete_data('" + p + "')");
+    public void completeData(String project) {
+        try {
+            qRunner.update(connection, "CALL combo_complete_data('" + project + "')");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
     public void initialize() {
-        try {
-            dropProject(getProjects());
-        } catch (DBObjectDoesNotExistException e) {
-            // should come here when no Projects table exists
-        }
-        DB2Interface.safeDropTable(PROJECTS);
-        jdbcTemplate.execute("CREATE TABLE " + PROJECTS + " (name character varying(20) NOT NULL PRIMARY KEY)");
-
-        DB2Interface.safeDropProcedure("insert_concept_assertions");
-        DB2Interface.safeDropProcedure("insert_role_assertions");
-        DB2Interface.safeDropProcedure("complete_data");
+        // no need for dropping procedures first because they are defined with
+        // CREATE OR REPLACE
         if (useInsert) {
-            loadProcedureFromFile("insert_concept_assertions_insert.sql");
-            loadProcedureFromFile("insert_role_assertions_insert.sql");
+            loadProcedureFromFile("combo_insert_insert.sql");
+            loadProcedureFromFile("combo_bulk_load_file_import.sql");
         } else {
-            loadProcedureFromFile("insert_concept_assertions_load.sql");
-            loadProcedureFromFile("insert_role_assertions_load.sql");
+            loadProcedureFromFile("combo_insert_load.sql");
+            loadProcedureFromFile("combo_bulk_load_file_load.sql");
         }
-        loadProcedureFromFile("complete_data.sql");
+        loadProcedureFromFile("combo_drop.sql");
+        loadProcedureFromFile("combo_create_project.sql");
+        loadProcedureFromFile("combo_drop_project.sql");
+        loadProcedureFromFile("combo_init_layout.sql");
+        loadProcedureFromFile("combo_update_stats.sql");
+        loadProcedureFromFile("combo_project_exists.sql");
+        loadProcedureFromFile("combo_bulk_export_file.sql");
+        loadProcedureFromFile("combo_complete_init_helpertables.sql");
+        loadProcedureFromFile("combo_complete_riclosure.sql");
+        loadProcedureFromFile("combo_complete_cnclosure.sql");
+        loadProcedureFromFile("combo_complete_data.sql");
+        try {
+            qRunner.update(connection, "CALL combo_init_layout");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
-    public void updateStatistics(List<String> projects) {
-        for (String p : projects) {
-            DB2Interface.updateStatistics(getTableConceptAssertions(p));
-            DB2Interface.updateStatistics(getTableRoleAssertions(p));
-            DB2Interface.updateStatistics(getTableSymbols(p));
-            DB2Interface.updateStatistics(getTableTBox(p));
-            DB2Interface.updateStatistics(getTableRBox(p));
-            DB2Interface.updateStatistics(getTableGenRoles(p));
-            DB2Interface.updateStatistics(getTableGenConcepts(p));
-            DB2Interface.updateStatistics(getTableQualifiedExistentials(p));
+    private void bulkLoadFromFile(String filename, String tablename) {
+        try {
+            qRunner.update(connection, "CALL combo_bulk_load_file('" + filename + "', '" + tablename + "')");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private void bulkExportToFile(String filename, String tablename) {
+        try {
+            qRunner.update(connection, "CALL combo_bulk_export_file('" + filename + "', '" + tablename + "')");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public void updateStatistics(String project) {
+        try {
+            qRunner.update(connection, "CALL combo_update_stats('" + project + "')");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
@@ -304,7 +273,9 @@ public class DBLayout {
                         builder.append(line).append('\n');
                     }
                 }
-                jdbcTemplate.execute(builder.toString());
+                qRunner.update(connection, builder.toString());
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
             } finally {
                 input.close();
             }
@@ -312,4 +283,6 @@ public class DBLayout {
             throw new RuntimeException(e);
         }
     }
+
+    // TODO: Add an integrity checking functionality. We can check data integrity once data is bulk loaded
 }

@@ -15,45 +15,91 @@
  */
 package reasoning;
 
+import de.unibremen.informatik.tdki.combo.data.DBConfig;
+import de.unibremen.informatik.tdki.combo.data.DBConnPool;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
 import de.unibremen.informatik.tdki.combo.data.MemToBulkFileWriter;
 import de.unibremen.informatik.tdki.combo.syntax.axiom.ConceptAssertion;
 import de.unibremen.informatik.tdki.combo.syntax.concept.ConceptName;
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.sql.Connection;
+import java.util.ArrayList;
 import java.util.List;
+import org.apache.commons.dbutils.DbUtils;
+import org.hamcrest.CoreMatchers;
 import org.junit.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  *
  * @author İnanç Seylan
  */
 public class DBLayoutTest {
-    
-    private static final List<String> PROJECTS = Arrays.asList("test");
-    
+
     private DBLayout layout;
+
+    private static Connection connection;
+
+    @BeforeClass
+    public static void setUpClass() {
+        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        connection = pool.getConnection();
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        DbUtils.closeQuietly(connection);
+    }
 
     @Before
     public void setUp() {
-        layout = new DBLayout(true);
+        layout = new DBLayout(true, connection);
         layout.initialize();
-        layout.createProject(PROJECTS);
+    }
+
+    @Test
+    public void testInitCreateDelete() {
+        assertFalse(layout.createProject("test"));
+        assertTrue(layout.createProject("test"));
+        assertFalse(layout.createProject("deneme"));
+        assertTrue(layout.createProject("deneme"));
+
+        List<String> projectsAlt1 = new ArrayList<String>();
+        projectsAlt1.add("test");
+        projectsAlt1.add("deneme");
+        List<String> projectsAlt2 = new ArrayList<String>();
+        projectsAlt2.add("deneme");
+        projectsAlt2.add("test");
+        Assert.assertThat(layout.getProjects(),
+                CoreMatchers.anyOf(CoreMatchers.is(projectsAlt1), CoreMatchers.is(projectsAlt2)));
+
+        layout.dropProject("test");
+        assertFalse(layout.createProject("test"));
+        assertTrue(layout.createProject("test"));
+
+        layout.initialize();
+        assertFalse(layout.createProject("test"));
     }
 
     @Test
     public void testExport() throws IOException, InterruptedException {
+        layout.createProject("test");
+
         File input = File.createTempFile("test", "combo");
         input.deleteOnExit();
         MemToBulkFileWriter writer = new MemToBulkFileWriter(input);
         writer.add(new ConceptAssertion(new ConceptName("A"), "a"));
         writer.close();
-        
-        layout.loadProject(input, PROJECTS.get(0));
-        
+
+        layout.loadProject(input, "test");
+
         File output = File.createTempFile("test", "combo");
         output.deleteOnExit();
-        layout.exportProject(PROJECTS.get(0), output);
+        layout.exportProject("test", output);
     }
+    
+    // TODO: if you have time, you can improve the import and export tests
+    // by checking that the expected data is actually there
 }

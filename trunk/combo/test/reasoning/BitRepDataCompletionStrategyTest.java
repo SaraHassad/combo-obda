@@ -16,6 +16,8 @@
 package reasoning;
 
 import de.unibremen.informatik.tdki.combo.common.CollectionUtils;
+import de.unibremen.informatik.tdki.combo.data.DBConfig;
+import de.unibremen.informatik.tdki.combo.data.DBConnPool;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
 import de.unibremen.informatik.tdki.combo.data.DBToMemLoader;
 import de.unibremen.informatik.tdki.combo.data.MemToBulkFileWriter;
@@ -31,10 +33,14 @@ import de.unibremen.informatik.tdki.combo.syntax.concept.ConceptName;
 import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.*;
+import org.apache.commons.dbutils.DbUtils;
 import org.hamcrest.CoreMatchers;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -43,7 +49,7 @@ import org.junit.Test;
  */
 public class BitRepDataCompletionStrategyTest {
 
-    private static final List<String> PROJECTS = Arrays.asList("test");
+    private static final String PROJECT = "test";
 
     private DBLayout layout;
 
@@ -51,16 +57,29 @@ public class BitRepDataCompletionStrategyTest {
 
     private File dataFile;
 
+    private static Connection connection;
+
+    @BeforeClass
+    public static void setUpClass() {
+        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        connection = pool.getConnection();
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        DbUtils.closeQuietly(connection);
+    }
+
     private void loadAndCompleteData() {
-        layout.loadProject(dataFile, PROJECTS.get(0));
-        layout.completeData(PROJECTS);
+        layout.loadProject(dataFile, PROJECT);
+        layout.completeData(PROJECT);
     }
 
     @Before
     public void setup() throws IOException, InterruptedException {
-        layout = new DBLayout(true);
+        layout = new DBLayout(true, connection);
         layout.initialize();
-        layout.createProject(PROJECTS);
+        layout.createProject(PROJECT);
 
         dataFile = File.createTempFile("test", "combo");
         dataFile.deleteOnExit();
@@ -75,7 +94,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(new ConceptName("A"), new ConceptName("B"))), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a"), new ConceptAssertion(new ConceptName("B"), "a")),
                 materializer.getConceptAssertions());
@@ -90,7 +109,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(new ConceptName("A"), new ConceptName("B"))), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a"), new ConceptAssertion(new ConceptName("B"), "a")),
                 materializer.getConceptAssertions());
@@ -107,7 +126,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(new ConceptName("A"), someR)), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "a", "c_R0")), materializer.getRoleAssertions());
@@ -122,7 +141,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(new ConceptName("A"), someR)), materializer.getConceptInclusions());
         Assert.assertEquals(Collections.<ConceptAssertion>emptySet(), materializer.getConceptAssertions());
         Assert.assertEquals(Collections.<ObjectRoleAssertion>emptySet(), materializer.getRoleAssertions());
@@ -138,7 +157,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(new ConceptName("A"), someInvR)), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "c_R-0", "a")), materializer.getRoleAssertions());
@@ -153,7 +172,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(new ConceptName("A"), someInvR)), materializer.getConceptInclusions());
         Assert.assertEquals(Collections.<ConceptAssertion>emptySet(), materializer.getConceptAssertions());
         Assert.assertEquals(Collections.<ObjectRoleAssertion>emptySet(), materializer.getRoleAssertions());
@@ -169,7 +188,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(someR, new ConceptName("A"))), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "a", "b")), materializer.getRoleAssertions());
@@ -186,7 +205,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(existsR, existsT)), materializer.getConceptInclusions());
         Assert.assertEquals(Collections.<ConceptAssertion>emptySet(), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "a", "b"), new ObjectRoleAssertion(new Role("T"), "a", "c_T0")),
@@ -204,7 +223,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(existsR, existsInvT)), materializer.getConceptInclusions());
         Assert.assertEquals(Collections.<ConceptAssertion>emptySet(), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "a", "b"), new ObjectRoleAssertion(new Role("T"), "c_T-0", "a")),
@@ -221,7 +240,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(someInvR, new ConceptName("A"))), materializer.getConceptInclusions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "b", "a")), materializer.getRoleAssertions());
@@ -238,7 +257,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(existsInvR, existsT)), materializer.getConceptInclusions());
         Assert.assertEquals(Collections.<ConceptAssertion>emptySet(), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "b", "a"), new ObjectRoleAssertion(new Role("T"), "a", "c_T0")),
@@ -256,7 +275,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new GCI(existsInvR, existsInvT)), materializer.getConceptInclusions());
         Assert.assertEquals(Collections.<ConceptAssertion>emptySet(), materializer.getConceptAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(new Role("R"), "b", "a"), new ObjectRoleAssertion(new Role("T"), "c_T-0", "a")),
@@ -274,7 +293,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<RoleInclusion> expectedRI = new HashSet<RoleInclusion>();
         expectedRI.add(new RoleInclusion(R, S));
         expectedRI.add(new RoleInclusion(R.copy().toggleInverse(), S.copy().toggleInverse()));
@@ -298,7 +317,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<RoleInclusion> expectedRI = new HashSet<RoleInclusion>();
         expectedRI.add(new RoleInclusion(R, invS));
         expectedRI.add(new RoleInclusion(R.copy().toggleInverse(), S));
@@ -322,7 +341,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Set<RoleInclusion> expectedRI = new HashSet<RoleInclusion>();
         expectedRI.add(new RoleInclusion(invR, S));
@@ -348,7 +367,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Set<RoleInclusion> expectedRI = new HashSet<RoleInclusion>();
         expectedRI.add(new RoleInclusion(invR, invS));
@@ -387,7 +406,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Set<ObjectRoleAssertion> expected = new HashSet<ObjectRoleAssertion>();
         expected.add(new ObjectRoleAssertion(R, "a", "c_R0"));
@@ -416,7 +435,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Set<GCI> expectedCI = new HashSet<GCI>();
         expectedCI.add(new GCI(A, existsR));
@@ -453,7 +472,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
 
@@ -482,7 +501,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(new ConceptName("A"), "a")), materializer.getConceptAssertions());
 
@@ -534,7 +553,7 @@ public class BitRepDataCompletionStrategyTest {
 
         putLoopData();
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
         Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
     }
@@ -549,7 +568,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(Collections.<ObjectRoleAssertion>emptySet(), materializer.getRoleAssertions());
     }
 
@@ -579,7 +598,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(A, "a")), materializer.getConceptAssertions());
 
@@ -615,7 +634,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Set<GCI> expectedCI = new HashSet<GCI>();
         expectedCI.add(new GCI(A, existsR));
@@ -659,7 +678,7 @@ public class BitRepDataCompletionStrategyTest {
         final RoleRestriction existsNewRoleInv = new RoleRestriction(RoleRestriction.Constructor.SOME, newRole.copy().toggleInverse());
         final RoleRestriction existsOriginalRole = new RoleRestriction(RoleRestriction.Constructor.SOME, R);
         final RoleRestriction existsOriginalRoleInv = new RoleRestriction(RoleRestriction.Constructor.SOME, R.copy().toggleInverse());
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
 
         Set<GCI> expectedCI = new HashSet<GCI>();
         expectedCI.add(new GCI(A, existsNewRole));
@@ -699,7 +718,7 @@ public class BitRepDataCompletionStrategyTest {
 
         Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> assertions = materializer.getRoleAssertions();
         Assert.assertTrue(assertions.contains(new ObjectRoleAssertion(R, "a", anonIndv.toString())));
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "a", anonIndv.toString())));
@@ -723,7 +742,7 @@ public class BitRepDataCompletionStrategyTest {
 
         Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> assertions = materializer.getRoleAssertions();
         Assert.assertTrue(assertions.contains(new ObjectRoleAssertion(R, "b", anonIndv.toString())));
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "b", anonIndv.toString())));
@@ -746,7 +765,7 @@ public class BitRepDataCompletionStrategyTest {
 
         Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> assertions = materializer.getRoleAssertions();
         Assert.assertTrue(assertions.contains(new ObjectRoleAssertion(R, anonIndv.toString(), "a")));
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "a", anonIndv.toString())));
@@ -770,7 +789,7 @@ public class BitRepDataCompletionStrategyTest {
 
         Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> assertions = materializer.getRoleAssertions();
         Assert.assertTrue(assertions.contains(new ObjectRoleAssertion(R, anonIndv.toString(), "a")));
         Assert.assertFalse(assertions.contains(new ObjectRoleAssertion(newRole, "a", anonIndv.toString())));
@@ -795,7 +814,7 @@ public class BitRepDataCompletionStrategyTest {
 
         Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> assertions = materializer.getRoleAssertions();
         System.out.println(assertions); // TODO turn this into an equality check for the expected
         Assert.assertTrue(assertions.contains(new ObjectRoleAssertion(R, anonIndv.toString(), "b")));
@@ -819,7 +838,7 @@ public class BitRepDataCompletionStrategyTest {
 
         loadAndCompleteData();
 
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Assert.assertEquals(CollectionUtils.newHashSet(new ObjectRoleAssertion(R, "a", "b")), materializer.getRoleAssertions());
         Assert.assertEquals(CollectionUtils.newHashSet(new ConceptAssertion(A, "b"), new ConceptAssertion(B, "b"), new ConceptAssertion(C, "a")), materializer.getConceptAssertions());
     }
@@ -830,14 +849,17 @@ public class BitRepDataCompletionStrategyTest {
         Role invR = new Role("R", true);
         Role S = new Role("S");
         ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
 
         writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new ConceptAssertion(B, "a"));
         writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, invR)));
+        writer.add(new GCI(B, new RoleRestriction(RoleRestriction.Constructor.SOME, S)));
         writer.add(new RoleInclusion(invR, S));
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
         expectedRA.add(new ObjectRoleAssertion(R, "c_R-0", "a"));
         expectedRA.add(new ObjectRoleAssertion(S, "a", "c_R-0"));
@@ -858,14 +880,14 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
         expectedRA.add(new ObjectRoleAssertion(R, "a", "c_R0"));
         expectedRA.add(new ObjectRoleAssertion(S, "c_R0", "a"));
 
         Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
     }
-    
+
     @Test
     public void testCompleteQRRedundancy1() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -880,21 +902,21 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv = new AnonymousIndividual(newRole);
 
         Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
         expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv.toString()));
         Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
-        
+
         Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
         expectedCA.add(new ConceptAssertion(A, "a"));
         expectedCA.add(new ConceptAssertion(B, anonIndv.toString()));
         Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
     }
-    
+
     @Test
     public void testCompleteQRRedundancy2() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -909,8 +931,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -921,11 +943,11 @@ public class BitRepDataCompletionStrategyTest {
         expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
         // role assertions second alternative
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
-        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString())); 
-        
-        Assert.assertThat(materializer.getRoleAssertions(), 
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -936,11 +958,58 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
         expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
-        
+
         Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
+    @Test
+    public void testCompleteQRRedundancy2_1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, C)));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
+
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
     @Test
     public void testCompleteQRRedundancy3() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -956,8 +1025,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -970,9 +1039,9 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
 
-        Assert.assertThat(materializer.getRoleAssertions(), 
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -983,11 +1052,59 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
         expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
-        
+
         Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
+    @Test
+    public void testCompleteQRRedundancy3_1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, C)));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), B));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
+
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
     @Test
     public void testCompleteQRRedundancy4() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -1002,8 +1119,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -1017,10 +1134,10 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
         expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
-        
+
         Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -1029,11 +1146,11 @@ public class BitRepDataCompletionStrategyTest {
         Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
-        
+
         Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
     @Test
     public void testCompleteQRRedundancy5() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -1049,8 +1166,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -1064,10 +1181,10 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
         expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getRoleAssertions(), 
+
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -1076,11 +1193,11 @@ public class BitRepDataCompletionStrategyTest {
         Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
-        
+
         Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
     @Test
     public void testCompleteQRRedundancy6() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -1097,8 +1214,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -1112,10 +1229,10 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
         expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getRoleAssertions(), 
+
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions alternative 1
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -1126,11 +1243,62 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
         expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getConceptAssertions(), 
+
+        Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
+    @Test
+    public void testCompleteQRRedundancy6_1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
+
+        // role assertions alternative 1
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions alternative 2
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+
+        // concept assertions alternative 1
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions alternative 2
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
     @Test
     public void testCompleteQRRedundancy7() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -1148,8 +1316,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -1163,10 +1331,10 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
         expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getRoleAssertions(), 
+
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -1177,11 +1345,64 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
         expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getConceptAssertions(), 
+
+        Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
+    @Test
+    public void testCompleteQRRedundancy7_1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        Role invS = new Role("S", true);
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invS), B));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
+
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
     @Test
     public void testCompleteQRRedundancy8() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -1199,8 +1420,8 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
-        
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -1214,10 +1435,10 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
         expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getRoleAssertions(), 
+
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -1228,11 +1449,63 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
         expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getConceptAssertions(), 
+
+        Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
     }
-    
+
+    @Test
+    public void testCompleteQRRedundancy8_1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new RoleInclusion(S, R));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
+
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
     @Test
     public void testCompleteQRRedundancy9() throws IOException, InterruptedException {
         Role R = new Role("R");
@@ -1251,7 +1524,7 @@ public class BitRepDataCompletionStrategyTest {
         writer.close();
 
         loadAndCompleteData();
-        DBToMemLoader materializer = new DBToMemLoader(PROJECTS.get(0));
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
         Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
         AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
         Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
@@ -1265,10 +1538,10 @@ public class BitRepDataCompletionStrategyTest {
         Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
         expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
         expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
-        
-        Assert.assertThat(materializer.getRoleAssertions(), 
+
+        Assert.assertThat(materializer.getRoleAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
-        
+
         // concept assertions first alternative
         Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
         expectedCA0.add(new ConceptAssertion(A, "a"));
@@ -1279,8 +1552,156 @@ public class BitRepDataCompletionStrategyTest {
         expectedCA1.add(new ConceptAssertion(A, "a"));
         expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
         expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
-        
+
         Assert.assertThat(materializer.getConceptAssertions(),
                 CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
+    @Test
+    public void testCompleteQRRedundancy9_1() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        Role invS = new Role("S", true);
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, B)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, C)));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new RoleInclusion(S, R));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invS), B));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+        Role newRole1 = new Role(QualifiedExistentialEncoder.URI + "1");
+        AnonymousIndividual anonIndv1 = new AnonymousIndividual(newRole1);
+
+        // role assertions first alternative
+        Set<ObjectRoleAssertion> expectedRA0 = new HashSet<ObjectRoleAssertion>();
+        expectedRA0.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA0.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        // role assertions second alternative
+        Set<ObjectRoleAssertion> expectedRA1 = new HashSet<ObjectRoleAssertion>();
+        expectedRA1.add(new ObjectRoleAssertion(R, "a", anonIndv1.toString()));
+        expectedRA1.add(new ObjectRoleAssertion(S, "a", anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getRoleAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedRA0), CoreMatchers.is(expectedRA1)));
+
+        // concept assertions first alternative
+        Set<ConceptAssertion> expectedCA0 = new HashSet<ConceptAssertion>();
+        expectedCA0.add(new ConceptAssertion(A, "a"));
+        expectedCA0.add(new ConceptAssertion(B, anonIndv0.toString()));
+        expectedCA0.add(new ConceptAssertion(C, anonIndv0.toString()));
+        // concept assertions second alternative
+        Set<ConceptAssertion> expectedCA1 = new HashSet<ConceptAssertion>();
+        expectedCA1.add(new ConceptAssertion(A, "a"));
+        expectedCA1.add(new ConceptAssertion(B, anonIndv1.toString()));
+        expectedCA1.add(new ConceptAssertion(C, anonIndv1.toString()));
+
+        Assert.assertThat(materializer.getConceptAssertions(),
+                CoreMatchers.anyOf(CoreMatchers.is(expectedCA0), CoreMatchers.is(expectedCA1)));
+    }
+
+    @Test
+    public void testCompleteQRRedundancy10() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, B)));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), B));
+        writer.add(new RoleInclusion(R, S));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+
+        // role assertions
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", "c_R0"));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", "c_R0"));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+
+        // concept assertions
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, "c_R0"));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+
+    @Test
+    public void testCompleteQRRedundancy11() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        Role S = new Role("S");
+        ConceptName A = new ConceptName("A");
+        ConceptName B = new ConceptName("B");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, S, B)));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), B));
+        writer.add(new RoleInclusion(R, S));
+        writer.add(new RoleInclusion(S, R));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+
+        // role assertions
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        expectedRA.add(new ObjectRoleAssertion(S, "a", anonIndv0.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+
+        // concept assertions
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(B, anonIndv0.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
+    }
+
+    @Test
+    public void testCompleteQRRedundancy12() throws IOException, InterruptedException {
+        Role R = new Role("R");
+        Role invR = new Role("R", true);
+        ConceptName A = new ConceptName("A");
+        ConceptName C = new ConceptName("C");
+
+        writer.add(new ConceptAssertion(A, "a"));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R)));
+        writer.add(new GCI(A, new RoleRestriction(RoleRestriction.Constructor.SOME, R, C)));
+        writer.add(new GCI(new RoleRestriction(RoleRestriction.Constructor.SOME, invR), C));
+        writer.close();
+
+        loadAndCompleteData();
+        DBToMemLoader materializer = new DBToMemLoader(PROJECT, connection);
+        Role newRole0 = new Role(QualifiedExistentialEncoder.URI + "0");
+        AnonymousIndividual anonIndv0 = new AnonymousIndividual(newRole0);
+
+        // role assertions
+        Set<ObjectRoleAssertion> expectedRA = new HashSet<ObjectRoleAssertion>();
+        expectedRA.add(new ObjectRoleAssertion(R, "a", anonIndv0.toString()));
+        Assert.assertEquals(expectedRA, materializer.getRoleAssertions());
+
+        // concept assertions
+        Set<ConceptAssertion> expectedCA = new HashSet<ConceptAssertion>();
+        expectedCA.add(new ConceptAssertion(A, "a"));
+        expectedCA.add(new ConceptAssertion(C, anonIndv0.toString()));
+        Assert.assertEquals(expectedCA, materializer.getConceptAssertions());
     }
 }

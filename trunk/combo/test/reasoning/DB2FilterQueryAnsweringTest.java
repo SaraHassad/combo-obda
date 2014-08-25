@@ -18,9 +18,9 @@ package reasoning;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import de.unibremen.informatik.tdki.combo.common.Tuple;
-import de.unibremen.informatik.tdki.combo.data.DB2Interface;
+import de.unibremen.informatik.tdki.combo.data.DBConfig;
+import de.unibremen.informatik.tdki.combo.data.DBConnPool;
 import de.unibremen.informatik.tdki.combo.data.DBLayout;
-import de.unibremen.informatik.tdki.combo.data.JdbcTemplate;
 import de.unibremen.informatik.tdki.combo.data.MemToBulkFileWriter;
 import de.unibremen.informatik.tdki.combo.rewriting.FilterRewriterDB2;
 import de.unibremen.informatik.tdki.combo.syntax.Role;
@@ -35,10 +35,12 @@ import de.unibremen.informatik.tdki.combo.syntax.query.Head;
 import de.unibremen.informatik.tdki.combo.syntax.query.RoleAtom;
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
+import java.sql.Connection;
+import org.apache.commons.dbutils.DbUtils;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -48,14 +50,25 @@ import org.junit.Test;
 public class DB2FilterQueryAnsweringTest {
 
     private FilterRewriterDB2 rewriter;
-    private JdbcTemplate jdbcTemplate;
     private DBLayout layout;
-    private static final List<String> PROJECTS = Arrays.asList("test");
+    private static final String PROJECT = "test";
     private File dataFile;
     private MemToBulkFileWriter writer;
+    private static Connection connection;
 
-    public DB2FilterQueryAnsweringTest() {
-        jdbcTemplate = DB2Interface.getJDBCTemplate();
+    @BeforeClass
+    public static void setUpClass() {
+        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        connection = pool.getConnection();
+    }
+
+    @AfterClass
+    public static void tearDownClass() {
+        DbUtils.closeQuietly(connection);
+    }
+    
+    private <E> Multiset<Tuple<E>> getTuples(String query) {
+        return TestUtils.getTuples(connection, query);
     }
 
     private void addTBoxAxioms(MemToBulkFileWriter writer) {
@@ -84,20 +97,20 @@ public class DB2FilterQueryAnsweringTest {
 
     @Before
     public void setUp() throws IOException, InterruptedException {
-        layout = new DBLayout(true);
+        layout = new DBLayout(true, connection);
         layout.initialize();
-        layout.createProject(PROJECTS);
+        layout.createProject(PROJECT);
 
         dataFile = File.createTempFile("test", "combo");
         dataFile.deleteOnExit();
         writer = new MemToBulkFileWriter(dataFile);
 
-        rewriter = new FilterRewriterDB2(PROJECTS.get(0));
+        rewriter = new FilterRewriterDB2(PROJECT, connection);
     }
 
     private void loadAndCompleteData() {
-        layout.loadProject(dataFile, PROJECTS.get(0));
-        layout.completeData(PROJECTS);
+        layout.loadProject(dataFile, PROJECT);
+        layout.completeData(PROJECT);
     }
 
     @Test
@@ -107,13 +120,13 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x"), new ConceptAtom("A", "x"));
 
-        Multiset<Tuple<String>> tuples = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> tuples = getTuples(rewriter.filter(query, true, false, false).toString());
         Multiset<Tuple<String>> expected = HashMultiset.create();
         expected.add(new Tuple<String>("a"));
         expected.add(new Tuple<String>("b"));
         Assert.assertEquals(expected, tuples);
 
-        Multiset<Tuple<Integer>> tuples2 = TestUtils.getTuples(rewriter.filter(query, true, true, false).toString());
+        Multiset<Tuple<Integer>> tuples2 = getTuples(rewriter.filter(query, true, true, false).toString());
         Multiset<Tuple<Integer>> expected2 = HashMultiset.create();
         expected2.add(new Tuple<Integer>(new Integer(2)));
         Assert.assertEquals(expected2, tuples2);
@@ -126,7 +139,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x", "y"), new RoleAtom("R", "x", "y"));
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertTrue(rs.isEmpty());
     }
 
@@ -137,7 +150,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x", "y"), new RoleAtom("T", "x", "y"));
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertTrue(rs.isEmpty());
     }
 
@@ -148,7 +161,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("T", "x", "y"));
 
-        Multiset<Tuple<String>> tuples = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> tuples = getTuples(rewriter.filter(query, true, false, false).toString());
 
         Multiset<Tuple<String>> expected = HashMultiset.create();
         expected.add(new Tuple<String>("a"));
@@ -163,7 +176,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "y"), new RoleAtom("T", "x", "y"));
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertTrue(rs.isEmpty());
     }
 
@@ -174,7 +187,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new RoleAtom("T", "x", "y"));
         System.out.println(rewriter.filter(query, true, false, false).toString());
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertEquals(1, rs.size());
     }
 
@@ -184,7 +197,7 @@ public class DB2FilterQueryAnsweringTest {
         loadAndCompleteData();
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new ConceptAtom("A", "x"));
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertEquals(1, rs.size());
     }
 
@@ -194,7 +207,7 @@ public class DB2FilterQueryAnsweringTest {
         loadAndCompleteData();
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new RoleAtom("R", "x", "y"));
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertEquals(1, rs.size());
     }
 
@@ -207,7 +220,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x1", "x2"), new RoleAtom("T", "x1", "y"), new RoleAtom("T", "x2", "y"));
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Multiset<Tuple<String>> expected = HashMultiset.create();
         expected.add(new Tuple<String>("a", "a"));
         expected.add(new Tuple<String>("b", "b"));
@@ -222,7 +235,7 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("T", "x", "y"), new RoleAtom("R", "y", "z"), new RoleAtom("T", "z", "y"));
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertTrue(rs.isEmpty());
     }
 
@@ -244,7 +257,7 @@ public class DB2FilterQueryAnsweringTest {
                 new ConceptAtom("Univ", "y"), new RoleAtom("deptOf", "z", "y"), new ConceptAtom("Dept", "z"), new RoleAtom("teachesAt", "x", "z"));
 
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertTrue(rs.isEmpty());
     }
 
@@ -265,14 +278,14 @@ public class DB2FilterQueryAnsweringTest {
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("worksFor", "x", "y"),
                 new RoleAtom("paysSalaryOf", "y", "z"), new RoleAtom("isAffiliatedWith", "u", "z"));
 
-        Multiset<Tuple<String>> rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Multiset<Tuple<String>> expected = HashMultiset.create();
         expected.add(new Tuple<String>("a"));
         Assert.assertEquals(expected, rs);
 
         query = new ConjunctiveQuery(new Head("Q", "x"), new RoleAtom("worksFor", "x", "y"),
                 new RoleAtom("paysSalaryOf", "y", "z"), new RoleAtom("worksFor", "z", "u"));
-        rs = TestUtils.getTuples(rewriter.filter(query, true, false, false).toString());
+        rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertEquals(expected, rs);
     }
 }
