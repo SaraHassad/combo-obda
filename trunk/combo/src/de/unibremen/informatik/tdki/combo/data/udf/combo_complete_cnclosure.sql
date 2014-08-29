@@ -88,7 +88,7 @@ BEGIN
     FROM
       InclusionAxioms AS t0(r2,c), ConceptNames AS t1(c), RoleInv AS t2(r1,r2), RoleAssertions AS t3(r1,o1,o2)
     WHERE
-      t0.c=t1.c AND t2.r1=t3.r1 AND t0.r2=t2.r2+0 AND NOT EXISTS -- t2.r2+2 forces the planner to start from RoleInv and avoid a sort 
+      t0.c=t1.c AND t2.r1=t3.r1 AND t0.r2=t2.r2+0 AND NOT EXISTS -- t2.r2+0 forces the planner to start from RoleInv and avoid a sort 
       (
 	SELECT
 	  1
