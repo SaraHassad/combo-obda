@@ -18,6 +18,7 @@ BEGIN
   -- CREATE TABLE below needs dynamic SQL; otherwise we get an error that the table exists
   EXECUTE IMMEDIATE 'CREATE TABLE workConceptNames (concept integer NOT NULL PRIMARY KEY)';
   SET dsql = '
+    INSERT INTO workConceptNames
     WITH
     InclusionAxioms (c0, c1) AS
     (
@@ -39,14 +40,15 @@ BEGIN
       Inclusionaxioms 
     WHERE 
       BITAND(c1,12)=0';
-  CALL combo_insert(dsql, 'workConceptNames');
-  CALL sysproc.admin_cmd('RUNSTATS ON TABLE workConceptNames WITH DISTRIBUTION AND DETAILED INDEXES ALL'); -- TODO: make this a stored procedure
+  EXECUTE IMMEDIATE dsql;
+  CALL combo_updatestats('workConceptNames');
 
   CALL combo_drop('TABLE workRoleInv');
   EXECUTE IMMEDIATE 'CREATE TABLE workRoleInv (role integer, inv integer)';
   EXECUTE IMMEDIATE 'CREATE INDEX roleinv_role_inv ON workRoleInv (role, inv)';
   EXECUTE IMMEDIATE 'CREATE INDEX roleinv_inv_role ON workRoleInv (inv, role)';
   SET dsql = '
+    INSERT INTO workRoleInv
     WITH
     InclusionAxioms (c0, c1) AS
     (
@@ -82,7 +84,7 @@ BEGIN
       InclusionAxioms AS t0(r,s)
     WHERE
       BITAND(t0.s,2)=2';
-  CALL combo_insert(dsql, 'workRoleInv');
-  CALL sysproc.admin_cmd('RUNSTATS ON TABLE workRoleInv WITH DISTRIBUTION AND DETAILED INDEXES ALL');
+  EXECUTE IMMEDIATE dsql;
+  CALL combo_updatestats('workRoleInv');
 END
 @

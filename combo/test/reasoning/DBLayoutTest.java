@@ -78,6 +78,7 @@ public class DBLayoutTest {
         layout.dropProject("test");
         assertFalse(layout.createProject("test"));
         assertTrue(layout.createProject("test"));
+        layout.updateStatistics("test");
 
         layout.initialize();
         assertFalse(layout.createProject("test"));

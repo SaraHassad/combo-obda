@@ -223,12 +223,16 @@ public class DBLayout {
         loadProcedureFromFile("combo_create_project.sql");
         loadProcedureFromFile("combo_drop_project.sql");
         loadProcedureFromFile("combo_init_layout.sql");
-        loadProcedureFromFile("combo_update_stats.sql");
+        loadProcedureFromFile("combo_updatestats.sql");
+        loadProcedureFromFile("combo_updatestats_project.sql");
         loadProcedureFromFile("combo_project_exists.sql");
         loadProcedureFromFile("combo_bulk_export_file.sql");
         loadProcedureFromFile("combo_complete_init_helpertables.sql");
         loadProcedureFromFile("combo_complete_riclosure.sql");
         loadProcedureFromFile("combo_complete_cnclosure.sql");
+        loadProcedureFromFile("combo_complete_firstlevel.sql");
+        loadProcedureFromFile("combo_complete_redundant.sql");
+        loadProcedureFromFile("combo_complete_stage3.sql");
         loadProcedureFromFile("combo_complete_data.sql");
         try {
             qRunner.update(connection, "CALL combo_init_layout");
