@@ -233,6 +233,7 @@ public class DBLayout {
         loadProcedureFromFile("combo_complete_firstlevel.sql");
         loadProcedureFromFile("combo_complete_redundant.sql");
         loadProcedureFromFile("combo_complete_stage3.sql");
+        loadProcedureFromFile("combo_complete_anonymous.sql");
         loadProcedureFromFile("combo_complete_data.sql");
         try {
             qRunner.update(connection, "CALL combo_init_layout");
@@ -259,7 +260,7 @@ public class DBLayout {
 
     public void updateStatistics(String project) {
         try {
-            qRunner.update(connection, "CALL combo_update_stats('" + project + "')");
+            qRunner.update(connection, "CALL combo_updatestats_project('" + project + "')");
         } catch (SQLException ex) {
             throw new RuntimeException(ex);
         }

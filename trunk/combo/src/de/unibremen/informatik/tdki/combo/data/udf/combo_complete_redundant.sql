@@ -274,5 +274,6 @@ BEGIN
 	  t.r1=t1.r1
     )';
   CALL combo_insert(dsql, 'workRedundant');
+  CALL combo_updatestats('workRedundant');
 END
 @

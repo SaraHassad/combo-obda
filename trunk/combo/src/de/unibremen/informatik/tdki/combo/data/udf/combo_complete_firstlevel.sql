@@ -192,5 +192,6 @@ BEGIN
 	t0.c=t3.c AND t2.o1=t3.o1 AND t1.p=t2.p AND t0.s=t1.s
     )';
   CALL combo_insert(dsql, 'workFirstLevel');
+  CALL combo_updatestats('workFirstLevel');
 END
 @
