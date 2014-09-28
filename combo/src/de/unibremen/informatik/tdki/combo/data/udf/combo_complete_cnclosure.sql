@@ -7,15 +7,20 @@ BEGIN
   DECLARE RoleAssertions VARCHAR(50);
   DECLARE ConceptAssertions VARCHAR(50);
   DECLARE InclusionAxioms VARCHAR(50);
+  DECLARE Stage1 VARCHAR(50);
+  DECLARE Stage2 VARCHAR(50);
 
   DECLARE dsql CLOB(25000); 
 
   SET ConceptAssertions = project || '_ConceptAssertions';
   SET RoleAssertions = project || '_RoleAssertions';
   SET InclusionAxioms = project || '_InclusionAxioms';
+  SET Stage1 = project || '_Stage1';
+  SET Stage2 = project || '_Stage2';
 
-  CALL combo_drop('TABLE workConceptAssertions');
-  EXECUTE IMMEDIATE 'CREATE TABLE workConceptAssertions (concept integer, individual integer)';
+  CALL combo_drop('TABLE ' || Stage2);
+  EXECUTE IMMEDIATE 'CREATE TABLE ' || Stage2 || ' (concept integer, individual integer)';
+  EXECUTE IMMEDIATE 'CREATE INDEX ' || project || '_stg2_concept_individual ON ' || Stage2 || ' (concept, individual)';
   SET dsql = '
     WITH
     ConceptAssertions (c0, c1) AS
@@ -31,6 +36,13 @@ BEGIN
 	role, lhs, rhs
       FROM ' ||
 	RoleAssertions || '  
+    ),
+    Stage1 (c0, c1, c2) AS
+    (
+      SELECT 
+	role, lhs, rhs
+      FROM ' ||
+	Stage1 || '  
     ),
     RoleInv (c0, c1) AS
     (
@@ -88,7 +100,7 @@ BEGIN
     FROM
       InclusionAxioms AS t0(r2,c), ConceptNames AS t1(c), RoleInv AS t2(r1,r2), RoleAssertions AS t3(r1,o1,o2)
     WHERE
-      t0.c=t1.c AND t2.r1=t3.r1 AND t0.r2=t2.r2+0 AND NOT EXISTS -- t2.r2+0 forces the planner to start from RoleInv and avoid a sort 
+      t0.c=t1.c AND t2.r1=t3.r1 AND t0.r2=t2.r2 AND NOT EXISTS 
       (
 	SELECT
 	  1
@@ -97,7 +109,7 @@ BEGIN
 	WHERE
 	  t.c=t0.c AND t.o2=t3.o2
       )';
-  CALL combo_insert(dsql, 'workConceptAssertions');
-  CALL combo_insert('SELECT * FROM workConceptAssertions', project || '_ConceptAssertions');
+  CALL combo_insert(dsql, Stage2);
+  CALL combo_updatestats(Stage2);
 END
 @

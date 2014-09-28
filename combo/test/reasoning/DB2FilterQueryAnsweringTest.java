@@ -36,7 +36,6 @@ import de.unibremen.informatik.tdki.combo.syntax.query.RoleAtom;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import org.apache.commons.dbutils.DbUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -50,23 +49,30 @@ import org.junit.Test;
 public class DB2FilterQueryAnsweringTest {
 
     private FilterRewriterDB2 rewriter;
+    
     private DBLayout layout;
+    
     private static final String PROJECT = "test";
+    
     private File dataFile;
+    
     private MemToBulkFileWriter writer;
+    
     private static Connection connection;
+    
+    private static DBConnPool pool;
 
     @BeforeClass
     public static void setUpClass() {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        pool = new DBConnPool(DBConfig.fromPropertyFile());
         connection = pool.getConnection();
     }
 
     @AfterClass
     public static void tearDownClass() {
-        DbUtils.closeQuietly(connection);
+        pool.releaseConnection(connection);
     }
-    
+
     private <E> Multiset<Tuple<E>> getTuples(String query) {
         return TestUtils.getTuples(connection, query);
     }
@@ -88,7 +94,7 @@ public class DB2FilterQueryAnsweringTest {
         addABoxAxioms(writer);
         writer.close();
     }
-    
+
     private void createKBInFile() throws IOException, InterruptedException {
         addTBoxAxioms(writer);
         addABoxAxioms(writer);
@@ -255,7 +261,6 @@ public class DB2FilterQueryAnsweringTest {
 
         ConjunctiveQuery query = new ConjunctiveQuery(new Head("Q"), new ConceptAtom("Faculty", "x"), new RoleAtom("degreeFrom", "x", "y"),
                 new ConceptAtom("Univ", "y"), new RoleAtom("deptOf", "z", "y"), new ConceptAtom("Dept", "z"), new RoleAtom("teachesAt", "x", "z"));
-
 
         Multiset<Tuple<String>> rs = getTuples(rewriter.filter(query, true, false, false).toString());
         Assert.assertTrue(rs.isEmpty());

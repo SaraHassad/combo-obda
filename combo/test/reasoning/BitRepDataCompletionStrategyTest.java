@@ -35,7 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.util.*;
-import org.apache.commons.dbutils.DbUtils;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -56,18 +55,20 @@ public class BitRepDataCompletionStrategyTest {
     private MemToBulkFileWriter writer;
 
     private File dataFile;
+    
+    private static DBConnPool pool;
 
     private static Connection connection;
 
     @BeforeClass
     public static void setUpClass() {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        pool = new DBConnPool(DBConfig.fromPropertyFile());
         connection = pool.getConnection();
     }
 
     @AfterClass
     public static void tearDownClass() {
-        DbUtils.closeQuietly(connection);
+        pool.releaseConnection(connection);
     }
 
     private void loadAndCompleteData() {
@@ -414,6 +415,8 @@ public class BitRepDataCompletionStrategyTest {
         expected.add(new ObjectRoleAssertion(T, "c_S0", "c_T0"));
         Assert.assertEquals(expected, materializer.getRoleAssertions());
     }
+    
+    //TODO: test also gen concepts
 
     @Test
     public void testLoadFromDB() throws IOException, InterruptedException {

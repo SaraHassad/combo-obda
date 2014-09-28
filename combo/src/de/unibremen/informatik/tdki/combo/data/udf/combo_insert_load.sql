@@ -1,6 +1,6 @@
 CREATE OR REPLACE PROCEDURE combo_insert
 (
-  IN query CLOB(25000),
+  IN query CLOB(35000),
   IN table VARCHAR(50)
 )
 LANGUAGE SQL	 

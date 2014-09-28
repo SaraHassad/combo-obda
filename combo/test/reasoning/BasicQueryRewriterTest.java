@@ -32,7 +32,6 @@ import de.unibremen.informatik.tdki.combo.syntax.query.*;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import org.apache.commons.dbutils.DbUtils;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -53,15 +52,17 @@ public class BasicQueryRewriterTest {
     
     private static Connection connection;
     
+    private static DBConnPool pool;
+    
     @BeforeClass
     public static void setUpClass() {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        pool = new DBConnPool(DBConfig.fromPropertyFile());
         connection = pool.getConnection();
     }
  
     @AfterClass
     public static void tearDownClass() {
-        DbUtils.closeQuietly(connection);
+        pool.releaseConnection(connection);
     }
 
     @Before

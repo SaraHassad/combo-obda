@@ -31,11 +31,9 @@ import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 import junit.framework.Assert;
-import org.apache.commons.dbutils.DbUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -55,16 +53,18 @@ public class MemLoadAndMaterializeTest {
     private MemToBulkFileWriter writer;
     
     private static Connection connection;
+    
+    private static DBConnPool pool;
 
     @BeforeClass
     public static void setUpClass() {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        pool = new DBConnPool(DBConfig.fromPropertyFile());
         connection = pool.getConnection();
     }
 
     @AfterClass
     public static void tearDownClass() {
-        DbUtils.closeQuietly(connection);
+        pool.releaseConnection(connection);
     }
     
      @Before
