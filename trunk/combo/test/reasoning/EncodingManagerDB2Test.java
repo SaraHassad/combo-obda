@@ -27,7 +27,6 @@ import de.unibremen.informatik.tdki.combo.syntax.concept.Concept;
 import de.unibremen.informatik.tdki.combo.syntax.concept.ConceptName;
 import de.unibremen.informatik.tdki.combo.syntax.concept.RoleRestriction;
 import java.sql.Connection;
-import org.apache.commons.dbutils.DbUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -38,16 +37,18 @@ import org.junit.BeforeClass;
 public class EncodingManagerDB2Test {
     
     private static Connection connection;
+    
+    private static DBConnPool pool;
 
     @BeforeClass
     public static void setUpClass() {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        pool = new DBConnPool(DBConfig.fromPropertyFile());
         connection = pool.getConnection();
     }
 
     @AfterClass
     public static void tearDownClass() {
-        DbUtils.closeQuietly(connection);
+        pool.releaseConnection(connection);
     }
     
     @Before

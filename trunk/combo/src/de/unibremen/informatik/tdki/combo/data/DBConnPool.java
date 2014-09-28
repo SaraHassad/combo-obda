@@ -27,10 +27,18 @@ import org.apache.commons.dbutils.DbUtils;
 public class DBConnPool {
 
     private Connection connection;
-    // TODO: this is a bad interface somehow because we call it a pool but there is no returning back of the connection to the pool
-    // perhaps it is just better if we get rid of it
+    
+    private final DBConfig config;
+
     public DBConnPool(DBConfig dbConfig) {
-        switch (dbConfig.getDb()) {
+        this.config = dbConfig;
+    }
+    
+    public Connection getConnection() {
+        if (connection != null)
+            return connection;
+        
+        switch (config.getDb()) {
             case DB2:
                 assert DbUtils.loadDriver("com.ibm.db2.jcc.DB2Driver");
                 break;
@@ -38,14 +46,17 @@ public class DBConnPool {
                 break;
         }
         try {
-            connection = DriverManager.getConnection(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword());
+            connection = DriverManager.getConnection(config.getUrl(), config.getUsername(), config.getPassword());
         } catch (SQLException ex) {
             throw new RuntimeException(ex);
         }
+        return connection;
     }
     
-    public Connection getConnection() {
-        return connection;
+    public void releaseConnection(Connection c) {
+        if (c != null && c == connection) {
+            DbUtils.closeQuietly(connection);
+        }
     }
 
 }

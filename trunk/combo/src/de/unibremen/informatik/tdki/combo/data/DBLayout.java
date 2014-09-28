@@ -21,9 +21,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.dbutils.DbUtils;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.AbstractListHandler;
@@ -35,9 +39,9 @@ import org.apache.commons.dbutils.handlers.AbstractListHandler;
 public class DBLayout {
 
     private static final String PROJECTS = "Projects";
-    private boolean useInsert;
-    private Connection connection;
-    private QueryRunner qRunner;
+    private final boolean useInsert;
+    private final Connection connection;
+    private final QueryRunner qRunner;
     private static final String CONCEPT_ASSERTIONS = "ConceptAssertions";
     private static final String ROLE_ASSERTIONS = "RoleAssertions";
     private static final String CONCEPT_INCLUSIONS = "InclusionAxioms";
@@ -220,9 +224,16 @@ public class DBLayout {
             loadProcedureFromFile("combo_bulk_load_file_load.sql");
         }
         loadProcedureFromFile("combo_drop.sql");
+        loadProcedureFromFile("combo_init_layout.sql");
+
+        try {
+            qRunner.update(connection, "CALL combo_init_layout");
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
+
         loadProcedureFromFile("combo_create_project.sql");
         loadProcedureFromFile("combo_drop_project.sql");
-        loadProcedureFromFile("combo_init_layout.sql");
         loadProcedureFromFile("combo_updatestats.sql");
         loadProcedureFromFile("combo_updatestats_project.sql");
         loadProcedureFromFile("combo_project_exists.sql");
@@ -232,14 +243,10 @@ public class DBLayout {
         loadProcedureFromFile("combo_complete_cnclosure.sql");
         loadProcedureFromFile("combo_complete_firstlevel.sql");
         loadProcedureFromFile("combo_complete_redundant.sql");
-        loadProcedureFromFile("combo_complete_stage3.sql");
         loadProcedureFromFile("combo_complete_anonymous.sql");
+        loadProcedureFromFile("combo_complete_stage3and4.sql");
+        loadProcedureFromFile("combo_complete_stage5.sql");
         loadProcedureFromFile("combo_complete_data.sql");
-        try {
-            qRunner.update(connection, "CALL combo_init_layout");
-        } catch (SQLException ex) {
-            throw new RuntimeException(ex);
-        }
     }
 
     private void bulkLoadFromFile(String filename, String tablename) {
@@ -267,27 +274,35 @@ public class DBLayout {
     }
 
     private void loadProcedureFromFile(String file) {
+        String path = "udf/" + file;
+        StringBuilder builder = new StringBuilder();
         try {
-            String path = "udf/" + file;
             BufferedReader input = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(path)));
+            String line;
             try {
-                StringBuilder builder = new StringBuilder();
-                String line;
                 while ((line = input.readLine()) != null) {
                     if (!line.equals("@")) {
                         builder.append(line).append('\n');
                     }
                 }
-                qRunner.update(connection, builder.toString());
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
             } finally {
                 input.close();
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
         }
-    }
 
-    // TODO: Add an integrity checking functionality. We can check data integrity once data is bulk loaded
+        try {
+            Statement stmt = connection.createStatement();
+            try {
+                stmt.execute(builder.toString());
+            } finally {
+                DbUtils.close(stmt);
+            }
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
+        //qRunner.update(connection, builder.toString());
+        // TODO: Add an integrity checking functionality. We can check data integrity once data is bulk loaded
+    }
 }

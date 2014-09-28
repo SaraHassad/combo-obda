@@ -327,11 +327,6 @@ public class CombinedAppInterface {
     private static Connection connection;
 
     public static void main(String[] args) {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
-        connection = pool.getConnection();
-        
-        DBLayout layout = new DBLayout(false, connection);
-
         JCommander jc = new JCommander();
         CommandComplete complete = new CommandComplete();
         jc.addCommand("complete", complete);
@@ -358,9 +353,20 @@ public class CombinedAppInterface {
         CommandRunStats runStats = new CommandRunStats();
         jc.addCommand("runstats", runStats);
 
+        DBConnPool pool = null;
         try {
             jc.parse(args);
             String command = jc.getParsedCommand();
+            
+            if (command.equals("help")) {
+                jc.usage();
+                return;
+            }
+
+            pool = new DBConnPool(DBConfig.fromPropertyFile());
+            connection = pool.getConnection();
+
+            DBLayout layout = new DBLayout(false, connection);
             if (command.equals("complete")) {
                 for (String name : complete.getProjects()) {
                     layout.completeData(name);
@@ -382,8 +388,6 @@ public class CombinedAppInterface {
                 if (!projectExists) {
                     System.err.println("Project " + export.getProject() + " does not exist.");
                 }
-            } else if (command.equals("help")) {
-                jc.usage();
             } else if (command.equals("init")) {
                 layout.initialize();
             } else if (command.equals("list")) {
@@ -408,6 +412,9 @@ public class CombinedAppInterface {
         } catch (ParameterException e) {
             System.err.println(e.getMessage());
             System.err.println("Try the 'help' command for usage.");
+        } finally {
+            if (pool != null)
+                pool.releaseConnection(connection);
         }
     }
 
@@ -452,7 +459,7 @@ public class CombinedAppInterface {
         try {
             final QueryRunner qRunner = new QueryRunner();
             qRunner.query("SELECT funcname, parm_count FROM Syscat.Functions WHERE funcname LIKE '" + namePattern + "%'", new RowCallbackHandler() {
-                
+
                 @Override
                 public void processRow(ResultSet rs) throws SQLException {
                     StringBuilder query = new StringBuilder();

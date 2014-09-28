@@ -6,14 +6,19 @@ LANGUAGE SQL
 BEGIN
   DECLARE RoleAssertions VARCHAR(50);
   DECLARE RoleInclusions VARCHAR(50);
+  DECLARE Stage1 VARCHAR(50);
 
   DECLARE dsql CLOB(25000); 
 
   SET RoleAssertions = project || '_RoleAssertions';
   SET RoleInclusions = project || '_RoleInclusions';
+  SET Stage1 = project || '_Stage1';
 
-  CALL combo_drop('TABLE workRoleAssertions');
-  EXECUTE IMMEDIATE 'CREATE TABLE workRoleAssertions (role integer, lhs integer, rhs integer)';
+  CALL combo_drop('TABLE ' || Stage1);
+  EXECUTE IMMEDIATE 'CREATE TABLE ' || Stage1 ||' (role integer, lhs integer, rhs integer)';
+  EXECUTE IMMEDIATE 'CREATE INDEX ' || project || '_stg1_role_lhs_rhs ON ' || Stage1 || ' (role, lhs, rhs)';
+  EXECUTE IMMEDIATE 'CREATE INDEX ' || project || '_stg1_role_rhs_lhs ON ' || Stage1 || ' (role, rhs, lhs)';
+
   SET dsql = '
     WITH
     RoleInclusions (c0, c1) AS
@@ -72,7 +77,7 @@ BEGIN
 	WHERE
 	  t.s=t1.s AND t.o2=t2.o2 AND t.o1=t2.o1
       )';
-  CALL combo_insert(dsql, 'workRoleAssertions');
-  CALL combo_insert('SELECT * FROM workRoleAssertions', project || '_RoleAssertions');
+  CALL combo_insert(dsql, Stage1);
+  CALL combo_updatestats(Stage1);  
 END
 @

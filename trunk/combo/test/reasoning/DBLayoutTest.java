@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.dbutils.DbUtils;
 import org.hamcrest.CoreMatchers;
 import org.junit.*;
 import static org.junit.Assert.assertFalse;
@@ -41,16 +40,18 @@ public class DBLayoutTest {
     private DBLayout layout;
 
     private static Connection connection;
+    
+    private static DBConnPool pool;
 
     @BeforeClass
     public static void setUpClass() {
-        DBConnPool pool = new DBConnPool(DBConfig.fromPropertyFile());
+        pool = new DBConnPool(DBConfig.fromPropertyFile());
         connection = pool.getConnection();
     }
 
     @AfterClass
     public static void tearDownClass() {
-        DbUtils.closeQuietly(connection);
+        pool.releaseConnection(connection);
     }
 
     @Before
